@@ -11,13 +11,13 @@ setup(
 
     install_requires = ['docutils>=0.3'],
 
-		test_suite = 'tests'
+		test_suite = 'test',
 
     # metadata for upload to PyPI
     author = "Haydn King",
     author_email = "hjk734@gmail.com",
     description = "A script to map RNA-seq data to a genome",
-		long_description = read("README")
+		long_description = read("README.md"),
     license = "GPLv2",
 
     # could also include long_description, download_url, classifiers, etc.
