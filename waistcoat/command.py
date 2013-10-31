@@ -29,10 +29,10 @@ class Command:
 		out = p.communicate()
 
 		#check returncode
-		if p.returncode < 0:
+		if p.returncode != 0:
 			#error
 			raise subprocess.CalledProcessError(
-				"Program \"{}\" returned error code {}".format(cmd, p.returncode),
+				"Program \"{}\" returned error code {}".format(self.cmd, p.returncode),
 				out[1])
 
 		return out

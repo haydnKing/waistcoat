@@ -1,4 +1,4 @@
-import unittest, os, os.path
+import unittest, os, os.path, subprocess
 
 from waistcoat import command
 
@@ -16,22 +16,33 @@ class TestAvailable(unittest.TestCase):
 		"""Test that I know when a function doesn't exist"""
 		self.assertFalse(command.isAvailable(self.should_not_have))
 
-class TestCommand(command.Command):
+class ArgTester(command.Command):
 	def __init__(self):
 		self.cmd = 'sh'
 		self.default_args = [os.path.join(DATA_DIR, 'return_args.sh'),]
 
+class ReturnTester(command.Command):
+	def __init__(self):
+		self.cmd = 'sh'
+		self.default_args = [os.path.join(DATA_DIR, 'exit_failure.sh'),]
+
 class TestCommandCall(unittest.TestCase):
 	"""Test the Command.call function"""
 	fmt = "My arguments were \"{}\"\n"
-	cmd = TestCommand()
+	arg = ArgTester()
+	ret = ReturnTester()
 	
 	def test_none(self):
 		"""Test only default arguments"""
-		self.assertEqual(self.cmd.call()[0], self.fmt.format(''))
+		self.assertEqual(self.arg.call()[0], self.fmt.format(''))
 		
 	def test_args(self):
 		"""Test argument passing"""
-		self.assertEqual(self.cmd.call(['-a', '-b', '--aba', 'something'])[0], 
+		self.assertEqual(self.arg.call(['-a', '-b', '--aba', 'something'])[0], 
 				self.fmt.format('-a -b --aba something'))	
+	
+	def test_failure(self):
+		"""Test that a non-zero return value generates an exception"""
+		with self.assertRaises(subprocess.CalledProcessError):
+			self.ret.call()
 
