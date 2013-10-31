@@ -26,11 +26,17 @@ class ReturnTester(command.Command):
 		self.cmd = 'sh'
 		self.default_args = [os.path.join(DATA_DIR, 'exit_failure.sh'),]
 
+class StreamTester(command.Command):
+	def __init__(self):
+		self.cmd = 'sh'
+		self.default_args = [os.path.join(DATA_DIR, 'stream.sh'),]
+
 class TestCommandCall(unittest.TestCase):
 	"""Test the Command.call function"""
 	fmt = "My arguments were \"{}\"\n"
 	arg = ArgTester()
 	ret = ReturnTester()
+	stream = StreamTester()
 	
 	def test_none(self):
 		"""Test only default arguments"""
@@ -39,10 +45,33 @@ class TestCommandCall(unittest.TestCase):
 	def test_args(self):
 		"""Test argument passing"""
 		self.assertEqual(self.arg.call(['-a', '-b', '--aba', 'something'])[0], 
-				self.fmt.format('-a -b --aba something'))	
-	
+				self.fmt.format('-a -b --aba something'), 
+				"Failed to pass arguments as list")	
+		self.assertEqual(self.arg.call('-a -b --aba something')[0], 
+				self.fmt.format('-a -b --aba something'),
+				"Failed to pass arguments as string")	
+
+	def test_streaming(self):
+		"""Test that output is fed to the caller"""
+		cb = [0,]
+		def callback_fn(value):
+			#Sometimes there's an extra blank line at the end of the output but we're
+			#not botherd
+			if value != '':
+				cb[0] += 1
+				cb.append(value)
+
+		self.stream.call(args="Some Text", update_fn=callback_fn)
+		self.assertEqual(cb[0], 2, 
+				"cb func not executed: {} != {}".format(cb[0], 2))
+		self.assertEqual(cb[1], "Line 1\n",
+				"The callback function was not given the correct arguments by Command.call")
+		self.assertEqual(cb[2], "Line 2\n",
+				"The callback function was not given the correct arguments by Command.call")
+
 	def test_failure(self):
 		"""Test that a non-zero return value generates an exception"""
 		with self.assertRaises(subprocess.CalledProcessError):
 			self.ret.call()
+
 

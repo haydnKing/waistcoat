@@ -1,6 +1,6 @@
 """Class to execute an external command after checking arguments etc"""
 
-import subprocess, os
+import subprocess, os, shlex
 
 class Command:
 	"""A class which calls an external command and checks return values"""
@@ -11,6 +11,9 @@ class Command:
 
 	def call(self, args=[], update_fn=None):
 		"""Call the function with the argument and check return codes"""
+
+		if isinstance(args, basestring):
+			args = shlex.split(args)
 
 		p = subprocess.Popen([self.cmd,] + self.default_args + args,
 							stdout = subprocess.PIPE, 
