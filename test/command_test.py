@@ -18,24 +18,20 @@ class TestAvailable(unittest.TestCase):
 
 class TestCommand(command.Command):
 	def __init__(self):
-		self.cmd = os.path.join(DATA_DIR, 'return_args.sh')
+		self.cmd = 'sh'
+		self.default_args = [os.path.join(DATA_DIR, 'return_args.sh'),]
 
 class TestCommandCall(unittest.TestCase):
 	"""Test the Command.call function"""
-	fmt = "My arguments were \"{}\"\\n"
+	fmt = "My arguments were \"{}\"\n"
 	cmd = TestCommand()
 	
 	def test_none(self):
-		print self.cmd.cmd
-		self.assertEqual(self.cmd.call()[0], fmt.format(''))
+		"""Test only default arguments"""
+		self.assertEqual(self.cmd.call()[0], self.fmt.format(''))
 		
-	def test_switches(self):
-		self.assertEqual(self.cmd.call(['a', 'b', 'aba'])[0], 
-				fmt.format('-a -b --aba'))	
-		self.assertEqual(self.cmd.call(switches = ['a', 'b', 'aba'])[0], 
-				fmt.format('-a -b --aba'))	
-		self.assertEqual(self.cmd.call('a')[0], fmt.format('-a'))	
-
 	def test_args(self):
-		self.assertEqual(self.cmd.call(args = {'a': 'one', 'b': 'two', 'aba': 'three'})[0], 
-				fmt.format('-a one -b two --aba three'))	
+		"""Test argument passing"""
+		self.assertEqual(self.cmd.call(['-a', '-b', '--aba', 'something'])[0], 
+				self.fmt.format('-a -b --aba something'))	
+

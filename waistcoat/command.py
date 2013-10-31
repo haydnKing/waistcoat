@@ -7,12 +7,12 @@ class Command:
 
 	#the command to call
 	cmd = ""
+	default_args = []
 
-	def call(self, switches=[], args={}, update_fn=None):
+	def call(self, args=[], update_fn=None):
 		"""Call the function with the argument and check return codes"""
 
-		print "Call: {}".format([self.cmd,] + self.getArgs(switches, args))
-		p = subprocess.Popen([self.cmd,] + self.getArgs(switches, args),
+		p = subprocess.Popen([self.cmd,] + self.default_args + args,
 							stdout = subprocess.PIPE, 
 							stdin  = subprocess.PIPE,
 							stderr = subprocess.PIPE)
@@ -37,26 +37,13 @@ class Command:
 
 		return out
 
-	def getArgs(self, switches=[], args={}):
-		"""Return the argument list"""
-		def format(arg):
-			if len(arg) > 1:
-				return "--{}".format(arg)
-			return "-{}".format(arg)
-
-		if isinstance(switches, basestring):
-			switches = [switches,]
-
-		ret = [format(s) for s in switches]
-
-		for k, v in args.iteritems():
-			ret += [format(k), v]
-
-		return ret
 				
 def isAvailable(command):
 	try:
-		subprocess.call([command,])
+		subprocess.call([command,],
+							stdout = subprocess.PIPE, 
+							stdin  = subprocess.PIPE,
+							stderr = subprocess.PIPE)
 	except OSError as e:
 		if e.errno == os.errno.ENOENT:
 			# handle file not found error.
