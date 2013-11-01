@@ -90,10 +90,26 @@ class TopHat(command.Command):
 	def __init__(self):
 		self.cmd = "tophat"
 
-		self.ebwt_base = ""
+		self.index_base = ""
 
 		for o in self.options:
 			setattr(self, o, None)
+
+	def run(reads_1, reads_2 = [], index_base = ''):
+		"""Run tophat"""
+
+		def callback(line):
+			print "tophat: {}".format(line)
+
+		index_base = index_base if index_base else self.index_base
+		if not index_base:
+			raise ValueError("Location of index_base not set")
+
+		self.call([self.cmd,] + self.getOptions + [shellquote(index_base),
+			','.join([shellquote(read) for read in reads_1]),
+			','.join([shellquote(read) for read in reads_2]),
+				update_fn=callback)
+
 
 	def getOptions(self):
 		opts = []
