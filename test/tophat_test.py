@@ -8,7 +8,7 @@ class TophatTest(unittest.TestCase):
 
 	def setUp(self):
 		self.tophat = tophat.TopHat()
-		self.output = tempfile.mkdtemp()
+		self.output = tempfile.mkdtemp(prefix='test')
 
 	def tearDown(self):
 		#Delete tmpdir
