@@ -30,7 +30,7 @@ def split_by_barcode(in_file, barcode_fmt, barcodes, outdir=None):
 	for barcode, sample in barcodes.iteritems():
 		files[barcode] = os.path.join(outdir, '{}.fq'.format(sample))
 
-	barcodes = barcodes.items()
+	barcodes = [str(x) for x in barcodes.keys()]
 
 	#open the files
 	for barcode, name in files.iteritems():
@@ -38,7 +38,7 @@ def split_by_barcode(in_file, barcode_fmt, barcodes, outdir=None):
 
 	for seq in SeqIO.parse(in_file, 'fastq'):
 		#get the barcode
-		barcode = ''.join([seq.seq[x] for x in barcode_fmt]).upper()
+		barcode = str(''.join([seq.seq[x] for x in barcode_fmt]).upper())
 
 		if barcode in barcodes:
 			SeqIO.write(seq, files[barcode][1], 'fastq')
@@ -47,6 +47,7 @@ def split_by_barcode(in_file, barcode_fmt, barcodes, outdir=None):
 	for barcode, (fname, out) in files.iteritems():
 		out.close()
 		files[barcode] = fname
+
 
 	return files
 
