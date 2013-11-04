@@ -98,9 +98,6 @@ class TopHat(command.Command):
 	def run(self, reads_1, reads_2 = '', index_base = ''):
 		"""Run tophat"""
 
-		def callback(line):
-			print "tophat: {}".format(line)
-
 		#make sure we allways have a list of files
 		if isinstance(reads_1, basestring):
 			reads_1 = [reads_1,]
@@ -111,13 +108,13 @@ class TopHat(command.Command):
 		if not index_base:
 			raise ValueError("Location of index_base not set")
 
-		l = [self.cmd,] + self.getOptions() + [shellquote(index_base),
-			','.join([shellquote(read) for read in reads_1]),
-			','.join([shellquote(read) for read in reads_2])]
-		print "self.call({}, update_fn=callback)".format(l)
-		self.call(l,
-			update_fn=callback)
+		self.call( self.getOptions() + [index_base,
+			','.join([read for read in reads_1]),
+			','.join([read for read in reads_2])],
+			update_fn = self.__the_callback)
 
+	def __the_callback(self, line):
+		print "tophat: {}".format(line)
 
 	def getOptions(self):
 		opts = []
@@ -131,15 +128,13 @@ class TopHat(command.Command):
 					if opt: opts.append(o_)
 				#strings
 				elif isinstance(opt, basestring):
-					opts += [o_, shellquote(opt),]
+					opts += [o_, opt,]
 				#numbers
 				elif isinstance(opt, (int, long, float)):
 					opts += [o_, str(opt),]
 
 		return opts
-		
-def shellquote(s):
-	return "\"{}\"".format(s.replace("\"", "\\\""))
+
 
 def test_programs():
 	commands = {'tophat': False, 

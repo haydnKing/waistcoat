@@ -35,12 +35,12 @@ class Command:
 		if p.returncode != 0:
 			#error
 			raise subprocess.CalledProcessError(
-				"Program \"{}\" returned error code {}".format(self.cmd, p.returncode),
-				out[1])
+				p.returncode,
+				self.cmd,
+				output = out[1])
 
 		return out
-
-				
+		
 def isAvailable(command):
 	try:
 		subprocess.call([command,],
