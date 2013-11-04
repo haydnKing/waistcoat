@@ -95,20 +95,28 @@ class TopHat(command.Command):
 		for o in self.options:
 			setattr(self, o, None)
 
-	def run(reads_1, reads_2 = [], index_base = ''):
+	def run(self, reads_1, reads_2 = '', index_base = ''):
 		"""Run tophat"""
 
 		def callback(line):
 			print "tophat: {}".format(line)
 
+		#make sure we allways have a list of files
+		if isinstance(reads_1, basestring):
+			reads_1 = [reads_1,]
+		if isinstance(reads_2, basestring):
+			reads_2 = [reads_2]
+
 		index_base = index_base if index_base else self.index_base
 		if not index_base:
 			raise ValueError("Location of index_base not set")
 
-		self.call([self.cmd,] + self.getOptions + [shellquote(index_base),
+		l = [self.cmd,] + self.getOptions() + [shellquote(index_base),
 			','.join([shellquote(read) for read in reads_1]),
-			','.join([shellquote(read) for read in reads_2]),
-				update_fn=callback)
+			','.join([shellquote(read) for read in reads_2])]
+		print "self.call({}, update_fn=callback)".format(l)
+		self.call(l,
+			update_fn=callback)
 
 
 	def getOptions(self):
