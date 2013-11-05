@@ -7,6 +7,7 @@ from Bio import SeqIO
 
 from waistcoat import preprocess
 
+preprocess.verbose = False
 
 DATA_DIR = pjoin(psplit(__file__)[0], "data/")
 
@@ -40,7 +41,7 @@ class PreprocessTest(unittest.TestCase):
 		#check all of the files
 		self.assertSequences(self.code1, pjoin(self.tempdir, 'barcode_1.fq'))
 		self.assertSequences(self.code2, pjoin(self.tempdir, 'barcode_2.fq'))
-		self.assertSequences(self.unmapped, pjoin(self.tempdir, 'barcode_u.fq'))
+		self.assertSequences(self.unmapped, pjoin(self.tempdir, 'unmapped.fq'))
 		
 
 	def assertSequences(self, expected_file, actual_file):
