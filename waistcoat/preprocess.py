@@ -15,10 +15,12 @@ def split_by_barcode(in_file, barcode_fmt, barcodes, outdir=None):
 		in_file: path to a FASTQ file containing the reads
 		barcode_fmt: list of integers containting positions of the barcode
 		barcodes: dictionary mapping (uppercase) barcode to sample name
-		outdir (optional): output directory - a temporary one is created if None
+		outdir (optional): output directory - 
+			a temporary one is created if None
 
 	return:
-		A dictionary mapping barcodes to files, including an extra file "unmapped"
+		A dictionary mapping barcodes to files, 
+			including an extra file "unmapped"
 		for reads which did not appear to contain a barcode
 		outputs file to outdir
 	"""
@@ -84,6 +86,29 @@ def str_count(count):
 
 	return "\n".join(ret)
 
+def str_dist(dist):
+	low = 0
+	high = len(dist)
+	for d in dist:
+		if d != 0:
+			break
+		low += 1
+	for d in reverse(dist):
+		if d!= 0:
+			break
+		high -= 1
+
+	ret = []
+	scale = 60.0 / float(max(dist))
+	for i in range(low, high):
+		ret.append("\t{:3d}: ({:03d}) |{}".format(
+			i, dist[i], "*" * floor(dist[i] * scale)))
+	
+	ret.append("scale = {}".format(scale))
+
+	return "\n".join(ret)
+
+
 def remove_duplicates(input_file, output_file):
 	"""
 	Removes duplicate sequences from the file
@@ -93,8 +118,8 @@ def remove_duplicates(input_file, output_file):
 		output_file: name of the file to output too
 
 	Returns:
-		a tuple of (before, after) giving the number of records found in the file
-		before and after the function is called
+		a tuple of (before, after) giving the number of records found in 
+		the file before and after the function is called
 	"""
 	before = after = 0
 
@@ -109,12 +134,15 @@ def remove_duplicates(input_file, output_file):
 
 	out.close()
 
-	os.remove(input_file)
+	try:
+		os.remove(input_file)
+	except TypeError:
+		pass
 
 	return (before, after)
 
-def clean_distributions(in_files, barcode_fmt, min_length = 15, outdir=None,
-		remove_input=False):
+def clean_distributions(in_files, barcode_fmt, min_length = 15, 
+		suffix = '_nopolyA', remove_input=True):
 	"""
 	Removes terminal As
 	Reatains only unique reads
@@ -125,15 +153,46 @@ def clean_distributions(in_files, barcode_fmt, min_length = 15, outdir=None,
 		in_files: list of files to parse
 		barcode_fmt: list of integers containing positions of the barcode
 		min_length: the minimum length of read to retain
-		outdir: directory to output to - a temporary one is created if None
+		suffix: suffix to add to output files
 		remove_input: whether or not to delete the input file
 
 	output:
 		A list of outputted files
-		file names are chosed as:
-			original_name.ext -> original_name_nopolyA.ext
 	"""
-	for f in in_files:
-		pass
+	files = []
+	lengths = [0] * 1024
 
+	for f in in_files:
+		if verbose:
+			print "Cleaning sequences in {}...".format(os.path.split(f)[1])
+
+		temp_file = tempfile.NamedTemporaryFile()
+		for seq in SeqIO.parse(f, 'fastq'):
+			#Remove all terminal As and annotations
+			newseq = seq.seq.rstrip('aA')
+			seq = seq[0:len(newseq)]
+
+			#remove barcode
+			barcode_length = max(barcode_fmt)
+			seq = seq[max(barcode_fmt)+1:]
+			
+			if len(seq.seq) < 1024:
+				lengths[len(seq.seq)] += 1
+
+			if len(seq.seq) > min_length:
+				SeqIO.write(seq, temp_file, 'fastq')
+
+		if remove_input:
+			os.remove(f)
+
+		out_file = "{}{}.fq".format(f[0:f.rfind('.')], suffix)
+		temp_file.seek(0)
+		remove_duplicates(temp_file, out_file)
+		files.append(out_file)
+
+	if verbose:
+		print "Cleaned all sequences, length distribution:"
+		print str_dist(lengths)
+
+	return files
 
