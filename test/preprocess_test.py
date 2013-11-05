@@ -84,6 +84,41 @@ class PreprocessTest(unittest.TestCase):
 				"Sequence mismatch in file \'{}\'\n{}".format(
 					actual_file, print_seqs(expected,actual)))
 
+class SettingsTest(unittest.TestCase):
+	"""Test loading of settings"""
+	valid = "valid.json"
+	invalid = ["nobarcode.json",  
+						 "nofmt.json",  
+						 "wrongchars1.json",
+						 "wrongchars.json",
+						 "wronglength.json",
+						 "wrongtype1.json",
+						 "wrongtype.json",] 
+
+	def assertRaisesMsg(self, msg, etype, func, *args, **kwargs):
+		try:
+			func(*args, **kwargs)
+			self.fail(msg)
+		except etype as e:
+			if not isinstance(e, etype):
+				raise
+			pass
+
+	def test_valid(self):
+		"""Test loading valid settings"""
+		f = pjoin(DATA_DIR, 'settings/', self.valid)
+		output = preprocess.read_settings(f)
+
+		self.assertEqual(output, (
+			((0,1,2,6,7), (3,4,5)), 
+			['ATGCA', 'CTACT', 'CTACG',],))
+
+	def test_invalid(self):
+		for name in self.invalid:
+			f = pjoin(DATA_DIR, 'settings/', name)
+			self.assertRaisesMsg("Failed to raise ValueError in file {}".format(name),
+					ValueError, preprocess.read_settings, f)
+
 def print_seqs(expected, actual):
 	return ("Expected:\n" + "\n".join([str(x.seq) for x in expected]) +
 			"\nActual:\n" + "\n".join([str(x.seq) for x in actual]))
