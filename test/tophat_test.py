@@ -1,5 +1,6 @@
 from waistcoat import tophat
 import unittest, os, os.path, tempfile, shutil 
+import simplejson as json
 
 DATA_DIR = os.path.join( os.path.split(__file__)[0], "data/")
 
@@ -51,13 +52,13 @@ general_options = {
 		'b2_very_sensitive' : bool,
 		'b2_N' : int,
 		'b2_L' : int,
-		'b2_i' : int,
-		'b2_n_ceil' : int,
+		'b2_i' : basestring,
+		'b2_n_ceil' : basestring,
 		'b2_gbar' : int,
-		'b2_mp' : (int,float),
-		'b2_np' : (int,float),
-		'b2_rdg' : (int,float),
-		'b2_rfg' : (int,float),
+		'b2_mp' : basestring,
+		'b2_np' : int,
+		'b2_rdg' : basestring,
+		'b2_rfg' : basestring,
 		'b2_score_min' : basestring,
 		'b2_D' : int,
 		'b2_R' : int,
@@ -83,16 +84,11 @@ specific_options = {
 		'library_type': ('fr-unstranded', 'fr-firststrand', 'fr-secondstrand'),
 		}
 
-class TophatTest(unittest.TestCase):
-	"""Test the Tophat runner"""
+class TophatTestOptions(unittest.TestCase):
+	"""Test the Tophat class options"""
 
 	def setUp(self):
 		self.tophat = tophat.TopHat()
-		self.output = tempfile.mkdtemp(prefix='test')
-
-	def tearDown(self):
-		#Delete tmpdir
-		shutil.rmtree(self.output)
 
 	def test_getOptions(self):
 		"""Test that TopHat.getOptions works"""
@@ -167,12 +163,7 @@ class TophatTest(unittest.TestCase):
 				self.tophat, 'integer_quals', 5)
 		self.assertRaises(TypeError, setattr, 
 				self.tophat, 'integer_quals', 5.5)
-		
-		#int or float
-		self.assertRaises(TypeError, setattr, 
-				self.tophat, 'b2_mp', 'a string')
-		self.assertRaises(TypeError, setattr, 
-				self.tophat, 'b2_mp', True)
+
 
 
 	def test_specific_options(self):
@@ -184,6 +175,39 @@ class TophatTest(unittest.TestCase):
 			#test that setting an unsupported value generates an exception
 			self.assertRaises(ValueError, setattr, self.tophat, option, 
 				"invalid option value")
+
+class TopHatSettingsFile(unittest.TestCase):
+	"""Test the parsing of the settings file"""
+	valid = os.path.join(DATA_DIR, "tophat_settings/valid.json")
+	invalid = os.path.join(DATA_DIR, "tophat_settings/invalid.json")
+
+	def test_load_valid(self):
+		"""Test loading a valid file"""
+		th = tophat.load_settings(self.valid)
+
+		data = json.loads(open(self.valid).read())
+
+		for option,value in data['options'].iteritems():
+			self.assertEqual(getattr(th, option), value, 
+					"option \'{}\' should be \'{}\', not \'{}\'".format(option,
+						value, getattr(th,option)))
+
+	def test_load_invalid(self):
+		"""test that loading an invalid file generates an exception"""
+		self.assertRaises(BaseException, tophat.load_settings, self.invalid)
+
+class TophatTestRun(unittest.TestCase):
+	"""Test that the tophat class can actually run tophat"""
+
+	def setUp(self):
+		self.tophat = tophat.TopHat()
+		self.output = tempfile.mkdtemp(prefix='test')
+
+	def tearDown(self):
+		#Delete tmpdir
+		shutil.rmtree(self.output)
+
+
 
 	def test_run(self):
 		"""test that I can execute tophat on test data"""

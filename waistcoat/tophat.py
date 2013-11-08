@@ -61,13 +61,13 @@ class TopHat(command.Command):
 			'b2_very_sensitive' : bool,
 			'b2_N' : int,
 			'b2_L' : int,
-			'b2_i' : int,
-			'b2_n_ceil' : int,
+			'b2_i' : basestring,
+			'b2_n_ceil' : basestring,
 			'b2_gbar' : int,
-			'b2_mp' : (int,float),
-			'b2_np' : (int,float),
-			'b2_rdg' : (int,float),
-			'b2_rfg' : (int,float),
+			'b2_mp' : basestring,
+			'b2_np' : int,
+			'b2_rdg' : basestring,
+			'b2_rfg' : basestring,
 			'b2_score_min' : basestring,
 			'b2_D' : int,
 			'b2_R' : int,
@@ -173,7 +173,16 @@ def load_settings(file_name):
 	"""Read a JSON settings file and return a TopHat object with those options
 	set
 	Raises ValueError if the file is invalid"""
-	pass
+	
+	data = json.loads(open(file_name).read())
+
+	#object to return
+	t = TopHat()
+
+	for option,value in data['options'].iteritems():
+		setattr(t, option, value)
+
+	return t
 
 def test_programs():
 	commands = {'tophat': False, 
