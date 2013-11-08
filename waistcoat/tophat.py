@@ -2,6 +2,8 @@
 
 import command
 
+import simplejson as json
+
 class TopHat(command.Command):
 	"""Class to interface with tophat
 			See http://tophat.cbcb.umd.edu/manual.shtml
@@ -10,89 +12,88 @@ class TopHat(command.Command):
 			set self.read_gap_length = 5
 	"""
 
-	options = ['read_mismatches',
-						'read_gap_length',
-						'read_edit_dist',
-						'read_realign_edit_dist',
-						'bowtie1',
-						'output_dir',
-						'mate_inner_dist',
-						'mate_std_dev',
-						'min_anchor_length',
-						'splice_mismatches',
-						'min_intron_length',
-						'max_intron_length',
-						'max_insertion_length',
-						'max_deletion_length',
-						'solexa_quals',
-						'solexa1',
-						'quals',
-						'integer_quals',
-						'color',
-						'num_threads',
-						'max_multihits',
-						'report_secondary_alignments',
-						'no_discordant',
-						'no_mixed',
-						'no_coverage_search',
-						'coverage_search',
-						'microexon_search',
-						'library_type',
-						'bowtie_n',
-						'segment_mismatches',
-						'segment_length',
-						'min_segment_intron',
-						'max_segment_intron',
-						'min_coverage_intron',
-						'max_coverage_intron',
-						'keep_tmp',
-						'keep_fasta_order',
-						'no_sort_bam',
-						'no_convert_bam',
-						'resume',
-						'zpacker',
-						'b2_very_fast',
-						'b2_fast',
-						'b2_sensitive',
-						'b2_very_sensitive',
-						'b2_N',
-						'b2_L',
-						'b2_i',
-						'b2_n_ceil',
-						'b2_gbar',
-						'b2_mp',
-						'b2_np',
-						'b2_rdg',
-						'b2_rfg',
-						'b2_score_min',
-						'b2_D',
-						'b2_R',
-						'fusion_search',
-						'fusion_anchor_length',
-						'fusion_min_dist',
-						'fusion_read_mismatches',
-						'fusion_multireads',
-						'fusion_multipairs',
-						'fusion_ignore_chromosomes',
-						'raw_juncs',
-						'no_novel_juncs',
-						'GTF',
-						'transcriptome_index',
-						'transcriptome_index',
-						'transcriptome_index',
-						'transcriptome_only',
-						'transcriptome_max_hits',
-						'prefilter_multihits',
-						'insertions',
-						'deletions',
-						'no_novel_indels',]
+	options = {
+			'read_mismatches' : int,
+			'read_gap_length' : int,
+			'read_edit_dist' : int,
+			'read_realign_edit_dist' : int,
+			'bowtie1' : bool,
+			'output_dir' : basestring,
+			'mate_inner_dist' : int,
+			'mate_std_dev' : int,
+			'min_anchor_length' : int,
+			'splice_mismatches' : int,
+			'min_intron_length' : int,
+			'max_intron_length' : int,
+			'max_insertion_length' : int,
+			'max_deletion_length' : int,
+			'solexa_quals' : bool,
+			'solexa1' : bool,
+			'quals' : bool,
+			'integer_quals' : bool,
+			'color' : bool,
+			'num_threads' : int,
+			'max_multihits' : int,
+			'report_secondary_alignments' : bool,
+			'no_discordant' : bool,
+			'no_mixed' : bool,
+			'no_coverage_search' : bool,
+			'coverage_search' : bool,
+			'microexon_search' : bool,
+			'library_type' : basestring,
+			'bowtie_n' : bool,
+			'segment_mismatches' : int,
+			'segment_length' : int,
+			'min_segment_intron' : int,
+			'max_segment_intron' : int,
+			'min_coverage_intron' : int,
+			'max_coverage_intron' : int,
+			'keep_tmp' : bool,
+			'keep_fasta_order' : bool,
+			'no_sort_bam' : bool,
+			'no_convert_bam' : bool,
+			'resume' : basestring,
+			'zpacker' : basestring,
+			'b2_very_fast' : bool,
+			'b2_fast' : bool,
+			'b2_sensitive' : bool,
+			'b2_very_sensitive' : bool,
+			'b2_N' : int,
+			'b2_L' : int,
+			'b2_i' : int,
+			'b2_n_ceil' : int,
+			'b2_gbar' : int,
+			'b2_mp' : (int,float),
+			'b2_np' : (int,float),
+			'b2_rdg' : (int,float),
+			'b2_rfg' : (int,float),
+			'b2_score_min' : basestring,
+			'b2_D' : int,
+			'b2_R' : int,
+			'fusion_search' : bool,
+			'fusion_anchor_length' : int,
+			'fusion_min_dist' : int,
+			'fusion_read_mismatches' : int,
+			'fusion_multireads' : int,
+			'fusion_multipairs' : int,
+			'fusion_ignore_chromosomes' : bool,
+			'raw_juncs' : basestring,
+			'no_novel_juncs' : bool,
+			'GTF' : basestring,
+			'transcriptome_index' : basestring,
+			'transcriptome_only' : bool,
+			'transcriptome_max_hits' : int,
+			'prefilter_multihits' : bool,
+			'insertions' : basestring,
+			'deletions' : basestring,
+			'no_novel_indels' : bool,}
 
 	def __init__(self):
 		self.cmd = "tophat"
 
 		self.index_base = ""
 
-		for o in self.options:
+		for o in self.options.iterkeys():
 			setattr(self, o, None)
 
 	def run(self, reads_1, reads_2 = '', index_base = ''):
@@ -118,7 +119,7 @@ class TopHat(command.Command):
 
 	def getOptions(self):
 		opts = []
-		for o in self.options:
+		for o in self.options.keys():
 			opt = getattr(self, o)
 			o_ = '--{}'.format(o.replace('_', '-'))
 			#if the option is set
@@ -135,6 +136,12 @@ class TopHat(command.Command):
 
 		return opts
 
+
+def load_settings(file_name):
+	"""Read a JSON settings file and return a TopHat object with those options
+	set
+	Raises ValueError if the file is invalid"""
+	pass
 
 def test_programs():
 	commands = {'tophat': False, 
