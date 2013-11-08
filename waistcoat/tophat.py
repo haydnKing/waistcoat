@@ -138,7 +138,23 @@ class TopHat(command.Command):
 
 	def __setattr__(self, name, value):
 		if self.options.has_key(name):
-			if isinstance(value, self.options[name]) or value is None:
+			if name == 'library_type':
+				if value in ('fr-unstranded', 'fr-firststrand', 'fr-secondstrand',
+						None):
+					self.__dict__[name] = value
+					return
+				else:
+					raise ValueError(("Option \'library_type\' supports values " + 
+							"\'fr-unstranded\', \'fr-firststrand\', and " + 
+							"\'fr-secondstrand\' only, not \'{}\'").format(value))
+			#have to handle int seperately to make sure we aren't given a bool to
+			# store as an int
+			if not self._option_is_int(name) and ( 
+					isinstance(value, self.options[name]) or value is None):
+				self.__dict__[name] = value
+			elif self._option_is_int(name) and (
+					isinstance(value, self.options[name]) or value is None) and (
+					not isinstance(value, bool)):
 				self.__dict__[name] = value
 			else:
 				raise TypeError(
@@ -146,6 +162,12 @@ class TopHat(command.Command):
 						name, str(self.options[name]), str(type(value))))
 		else:
 			raise ValueError("Tophat has no option \'{}\'".format(name))
+
+	def _option_is_int(self, name):
+		if hasattr(self.options[name], '__iter__'):
+			return int in self.options[name]
+		else:
+			return self.options[name] == int
 
 def load_settings(file_name):
 	"""Read a JSON settings file and return a TopHat object with those options
