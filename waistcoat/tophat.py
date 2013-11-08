@@ -13,6 +13,7 @@ class TopHat(command.Command):
 	"""
 
 	options = {
+			'index_base': basestring,
 			'read_mismatches' : int,
 			'read_gap_length' : int,
 			'read_edit_dist' : int,
@@ -88,10 +89,9 @@ class TopHat(command.Command):
 			'deletions' : basestring,
 			'no_novel_indels' : bool,}
 
-	def __init__(self):
-		self.cmd = "tophat"
+	cmd = "tophat"
 
-		self.index_base = ""
+	def __init__(self):
 
 		for o in self.options.iterkeys():
 			setattr(self, o, None)
@@ -136,6 +136,16 @@ class TopHat(command.Command):
 
 		return opts
 
+	def __setattr__(self, name, value):
+		if self.options.has_key(name):
+			if isinstance(value, self.options[name]) or value is None:
+				self.__dict__[name] = value
+			else:
+				raise TypeError(
+					"Setting \'{}\' must be of type {} or None, not {}".format(
+						name, str(self.options[name]), str(type(value))))
+		else:
+			raise ValueError("Tophat has no option \'{}\'".format(name))
 
 def load_settings(file_name):
 	"""Read a JSON settings file and return a TopHat object with those options
