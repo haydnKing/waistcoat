@@ -4,6 +4,8 @@ import command
 
 import simplejson as json
 
+verbose = True
+
 class TopHat(command.Command):
 	"""Class to interface with tophat
 			See http://tophat.cbcb.umd.edu/manual.shtml
@@ -112,10 +114,12 @@ class TopHat(command.Command):
 		self.call( self.getOptions() + [index_base,
 			','.join([read for read in reads_1]),
 			','.join([read for read in reads_2])],
-			update_fn = self.__the_callback)
+			update_fn = self.__the_callback,
+			stderr = True)
 
 	def __the_callback(self, line):
-		print "tophat: {}".format(line)
+		if verbose:
+			print ">Tophat: {}".format(line)
 
 	def getOptions(self):
 		opts = []

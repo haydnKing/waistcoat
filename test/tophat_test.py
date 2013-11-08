@@ -1,4 +1,5 @@
 from waistcoat import tophat
+tophat.verbose = False
 import unittest, os, os.path, tempfile, shutil 
 import simplejson as json
 

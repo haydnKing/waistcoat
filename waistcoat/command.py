@@ -9,8 +9,11 @@ class Command:
 	cmd = ""
 	default_args = []
 
-	def call(self, args=[], update_fn=None):
-		"""Call the function with the argument and check return codes"""
+	def call(self, args=[], update_fn=None, stderr=False):
+		"""Call the function with the argument and check return codes
+		update_fn: function to update with each line of output. must not block.
+		stderr: if true, listen to stderr instead of stdout
+		"""
 
 		if isinstance(args, basestring):
 			args = shlex.split(args)
@@ -23,10 +26,13 @@ class Command:
 		#wait for lines
 		if hasattr(update_fn, '__call__'):
 			while True:
-				nextline = p.stdout.readline()
+				if stderr:
+					nextline = p.stderr.readline()
+				else:
+					nextline = p.stdout.readline()
 				if nextline == '' and p.poll() != None:
 					break
-				update_fn(nextline)
+				update_fn(nextline.rstrip())
 
 		#collect the output
 		out = p.communicate()

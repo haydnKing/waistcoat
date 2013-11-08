@@ -62,12 +62,11 @@ class TestCommandCall(unittest.TestCase):
 				cb.append(value)
 
 		self.stream.call(args="Some Text", update_fn=callback_fn)
+		expected = ["Line 1", "Line 2"]
 		self.assertEqual(cb[0], 2, 
 				"cb func not executed: {} != {}".format(cb[0], 2))
-		self.assertEqual(cb[1], "Line 1\n",
-				"The callback function was not given the correct arguments by Command.call")
-		self.assertEqual(cb[2], "Line 2\n",
-				"The callback function was not given the correct arguments by Command.call")
+		self.assertEqual(cb[1:], expected,
+				"The callback function got {}, expected {}".format(cb[1:], expected))
 
 	def test_failure(self):
 		"""Test that a non-zero return value generates an exception"""
