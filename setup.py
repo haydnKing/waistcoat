@@ -9,7 +9,7 @@ setup(
     version = "0.01",
     packages = find_packages(),
 
-    install_requires = ['docutils>=0.3'],
+    install_requires = ['pysam>=0.7'],
 
 		test_suite = 'test',
 
