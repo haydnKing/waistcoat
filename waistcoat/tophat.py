@@ -188,6 +188,39 @@ def load_settings(file_name):
 
 	return t
 
+def discard_mapped(reads_file, index_base, tophat_settings = None, 
+			suffix="_nomapping"):
+	"""Map reads to the index and discard all the reads which map successfully"""
+	tempd = tempfile.mkdtemp(prefix='waistcoat')
+
+	outfile = reads_file[0:reads_file.rfind('.')] + suffix + ".fq"
+	
+	if tophat_settings:
+		th = load_settings(tophat_settings)
+	else:
+		th = TopHat()
+	
+	th.keep_fasta_order = True
+	th.output_dir = tempd
+
+	#run tophat
+	th.run(reads_file, index_base= index_base)
+
+	#open the hits
+	samfile = pysam.Samfile(os.path.join(tempd, "accepted_hits.bam"), "rb")
+
+	#iterate through the hits
+	for read in samfile.fetch():
+		#Do something fun
+
+	shutil.rmtree(tempd)
+	os.remove(reads_file)
+
+	return outfile
+
+
+
+
 def test_programs():
 	commands = {'tophat': False, 
 		    'bowtie2': False, 
