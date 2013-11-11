@@ -24,7 +24,7 @@ class Command:
 							stderr = subprocess.PIPE)
 
 		#wait for lines
-		if hasattr(update_fn, '__call__'):
+		if update_fn:
 			while True:
 				if stderr:
 					nextline = p.stderr.readline()
