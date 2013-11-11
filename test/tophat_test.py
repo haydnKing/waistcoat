@@ -1,6 +1,6 @@
 from waistcoat import tophat
 tophat.verbose = False
-import unittest, os, os.path, tempfile, shutil 
+import unittest, os, os.path, tempfile, shutil, SequenceTest
 import simplejson as json
 
 DATA_DIR = os.path.join( os.path.split(__file__)[0], "data/")
@@ -197,7 +197,7 @@ class TopHatSettingsFile(unittest.TestCase):
 		"""test that loading an invalid file generates an exception"""
 		self.assertRaises(BaseException, tophat.load_settings, self.invalid)
 
-class TophatTestRun(unittest.TestCase):
+class TophatTestRun(SequenceTest.SequenceTest):
 	"""Test that the tophat class can actually run tophat"""
 
 	def setUp(self):
@@ -207,7 +207,6 @@ class TophatTestRun(unittest.TestCase):
 	def tearDown(self):
 		#Delete tmpdir
 		shutil.rmtree(self.output)
-
 
 
 	def test_run(self):
@@ -236,6 +235,37 @@ class TophatTestRun(unittest.TestCase):
 		files = sorted(os.listdir(self.output))
 
 		self.assertEqual(files, expected_files)
+
+	def test_discard_mapped(self):
+		data = os.path.join(DATA_DIR, 'tophat_data/')
+		files = ['test_ref.1.bt2',
+						 'test_ref.2.bt2',
+						 'test_ref.3.bt2',
+						 'test_ref.4.bt2',
+						 'test_ref.rev.1.bt2',
+						 'test_ref.rev.2.bt2',
+						 'test_ref.fa',
+						 'reads_unmapped.fq']
+
+		expected = os.path.join(DATA_DIR, 'tophat_unmapped_out.fq')
+		expected_name = os.path.join(self.output, 
+				'reads_unmapped_nomapping.fq')
+
+		for f in files:
+			shutil.copyfile(os.path.join(data, f), os.path.join(self.output,f))
+
+		fname = tophat.discard_mapped(
+							os.path.join(self.output, 'reads_unmapped.fq'),
+							os.path.join(self.output, 'test_ref'))
+
+		self.assertEqual(fname, expected_name,
+				"discard_mapped expected \'{}\', produced \'{}\'".format(
+					expected_name, fname))
+		self.assertTrue(os.path.exists(expected_name), 
+			"Expected output file \'{}\' not produced".format(expected_name))
+
+		
+		self.assertSequences(expected, expected_name)
 
 
 		

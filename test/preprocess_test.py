@@ -1,9 +1,8 @@
-import tempfile, unittest, shutil
+import tempfile, unittest, shutil, SequenceTest
 
 from os.path import join as pjoin
 from os.path import split as psplit
 import os, shutil
-from Bio import SeqIO
 
 from waistcoat import preprocess
 
@@ -11,7 +10,7 @@ preprocess.verbose = False
 
 DATA_DIR = pjoin(psplit(__file__)[0], "data/")
 
-class PreprocessTest(unittest.TestCase):
+class PreprocessTest(SequenceTest.SequenceTest):
 
 	def setUp(self):
 		self.tempdir = tempfile.mkdtemp(prefix="test")
@@ -67,22 +66,6 @@ class PreprocessTest(unittest.TestCase):
 		#check that the contents of the output file are correct
 		self.assertSequences(test_output, output_file)
 
-	def assertSequences(self, expected_file, actual_file):
-		"""assert that contain all the same sequences"""
-		expected = sorted(list(SeqIO.parse(expected_file, 'fastq')),
-				key=lambda x: str(x.seq))
-		actual = sorted(list(SeqIO.parse(actual_file, 'fastq')),
-				key=lambda x: str(x.seq))
-
-		self.assertEqual(len(expected), len(actual), 
-				"Length mismatch in file \'{}\'.\n{}".format(
-					actual_file, print_seqs(expected,
-						actual)))
-
-		for i,(exp, act) in enumerate(zip(expected, actual)):
-			self.assertEqual(str(exp.seq), str(act.seq),
-				"Sequence mismatch in file \'{}\'\n{}".format(
-					actual_file, print_seqs(expected,actual)))
 
 class SettingsTest(unittest.TestCase):
 	"""Test loading of settings"""
@@ -119,6 +102,3 @@ class SettingsTest(unittest.TestCase):
 			self.assertRaisesMsg("Failed to raise ValueError in file {}".format(name),
 					ValueError, preprocess.read_settings, f)
 
-def print_seqs(expected, actual):
-	return ("Expected:\n" + "\n".join([str(x.seq) for x in expected]) +
-			"\nActual:\n" + "\n".join([str(x.seq) for x in actual]))

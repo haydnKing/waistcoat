@@ -1,6 +1,9 @@
 """Interface with the tophat program"""
 
-import command
+import command, tempfile, pysam, os.path, shutil
+from Bio import SeqIO
+from Bio.SeqRecord import SeqRecord
+from Bio.Seq import Seq
 
 import simplejson as json
 
@@ -209,7 +212,7 @@ def discard_mapped(reads_file, index_base, tophat_settings = None,
 	#open the hits
 	samfile = pysam.Samfile(os.path.join(tempd, "unmapped.bam"), "rb")
 
-	outfile = open(outfile, "wb")
+	outfile = open(outfile_name, "wb")
 	#write out FASTQ records
 	for read in samfile:
 		SeqIO.write(build_fastq(read), outfile, 'fastq')
@@ -218,7 +221,9 @@ def discard_mapped(reads_file, index_base, tophat_settings = None,
 	shutil.rmtree(tempd)
 	os.remove(reads_file)
 
-	return outfile
+	outfile.close()
+
+	return outfile_name
 
 
 # Precompute conversion table
