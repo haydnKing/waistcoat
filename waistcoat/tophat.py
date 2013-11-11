@@ -193,7 +193,7 @@ def discard_mapped(reads_file, index_base, tophat_settings = None,
 	"""Map reads to the index and discard all the reads which map successfully"""
 	tempd = tempfile.mkdtemp(prefix='waistcoat')
 
-	outfile = reads_file[0:reads_file.rfind('.')] + suffix + ".fq"
+	outfile_name = reads_file[0:reads_file.rfind('.')] + suffix + ".fq"
 	
 	if tophat_settings:
 		th = load_settings(tophat_settings)
@@ -207,17 +207,57 @@ def discard_mapped(reads_file, index_base, tophat_settings = None,
 	th.run(reads_file, index_base= index_base)
 
 	#open the hits
-	samfile = pysam.Samfile(os.path.join(tempd, "accepted_hits.bam"), "rb")
+	samfile = pysam.Samfile(os.path.join(tempd, "unmapped.bam"), "rb")
 
-	#iterate through the hits
-	for read in samfile.fetch():
-		#Do something fun
+	outfile = open(outfile, "wb")
+	#write out FASTQ records
+	for read in samfile:
+		SeqIO.write(build_fastq(read), outfile, 'fastq')
+
 
 	shutil.rmtree(tempd)
 	os.remove(reads_file)
 
 	return outfile
 
+
+# Precompute conversion table
+SANGER_SCORE_OFFSET = ord("!")
+q_mapping = dict()
+for letter in range(0, 255):
+	q_mapping[chr(letter)] = letter - SANGER_SCORE_OFFSET
+
+def build_fastq(read):
+	'''Build FASTQ SeqRecords out of BAM reads
+	
+	Note: chunks copied from Bio.SeqIO.QualityIO.py
+
+	This code adapted from issue 137 from pysam:
+	https://code.google.com/p/pysam/issues/attachmentText?id=137&aid=1370000000&name=build_fastq_seqrecords.py
+	'''
+
+	# Get the sequence first
+	descr = read.qname
+	id = read.qname
+	name = id
+	from Bio.Alphabet import IUPAC
+	record = SeqRecord(Seq(read.seq, IUPAC.ambiguous_dna),
+										 id=id, name=name, description=descr)
+
+	# Get the qualities second
+	qualities = [q_mapping[letter] for letter in read.qual]
+	if qualities and (min(qualities) < 0 or max(qualities) > 93):
+			raise ValueError("Invalid character in quality string")
+
+	#For speed, will now use a dirty trick to speed up assigning the
+	#qualities. We do this to bypass the length check imposed by the
+	#per-letter-annotations restricted dict (as this has already been
+	#checked by FastqGeneralIterator). This is equivalent to:
+	#record.letter_annotations["phred_quality"] = qualities
+	dict.__setitem__(record._per_letter_annotations,
+									 "phred_quality", qualities)
+	
+	return record
 
 
 
