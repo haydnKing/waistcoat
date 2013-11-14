@@ -196,7 +196,13 @@ class TopHatSettingsFile(unittest.TestCase):
 
 	def test_load_invalid(self):
 		"""test that loading an invalid file generates an exception"""
-		self.assertRaises(BaseException, tophat.load_settings, self.invalid)
+		self.assertRaises(BaseException, tophat.tophat_from_settings, 
+				self.invalid)
+	
+	def test_is_valid(self):
+		"""test that tophat.is_valid returns correctly"""
+		self.assertTrue(tophat.is_valid(self.valid))
+		self.assertFalse(tophat.is_valid(self.invalid))
 
 class TophatTestRun(SequenceTest.SequenceTest):
 	"""Test that the tophat class can actually run tophat"""

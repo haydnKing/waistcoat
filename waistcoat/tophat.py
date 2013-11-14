@@ -189,7 +189,7 @@ def tophat_from_settings(settings):
 
 	return t
 
-def test_settings(settings):
+def is_valid(settings):
 	"""Test that the settings dictionary is valid"""
 
 	try:
