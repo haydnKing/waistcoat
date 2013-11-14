@@ -163,8 +163,8 @@ class TopHat(command.Command):
 				self.__dict__[name] = value
 			else:
 				raise TypeError(
-					"Setting \'{}\' must be of type {} or None, not {}".format(
-						name, str(self.options[name]), str(type(value))))
+					"Tophat setting \'{}\' must be of type {} or None, not {}"
+						.format(name, str(self.options[name]), str(type(value))))
 		else:
 			raise ValueError("Tophat has no option \'{}\'".format(name))
 
