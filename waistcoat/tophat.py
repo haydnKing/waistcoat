@@ -176,20 +176,30 @@ class TopHat(command.Command):
 		else:
 			return self.options[name] == int
 
-def load_settings(file_name):
-	"""Read a JSON settings file and return a TopHat object with those options
-	set
+def tophat_from_settings(settings):
+	"""Construct a TopHat object from a dictionary of settings and return it
+	Raises exceptions on error
 	Raises ValueError if the file is invalid"""
-	
-	data = json.loads(open(file_name).read())
 
 	#object to return
 	t = TopHat()
 
-	for option,value in data['options'].iteritems():
-		setattr(t, option, value)
+	for option,value in settings.iteritems():
+		#if the option is not a JSON comment
+		if option[0] != '_':
+			setattr(t, option, value)
 
 	return t
+
+def test_settings(settings):
+	"""Test that the settings dictionary is valid"""
+
+	try:
+		t = tophat_from_settings(settings)
+		return True
+	except (ValueError, TypeError):
+		pass
+	return False
 
 def discard_mapped(reads_file, index_base, tophat_settings = None, 
 			suffix="_nomapping"):

@@ -177,18 +177,19 @@ class TophatTestOptions(unittest.TestCase):
 			self.assertRaises(ValueError, setattr, self.tophat, option, 
 				"invalid option value")
 
+def jread(filename):
+	return json.loads(open(filename).read())['options']
+
 class TopHatSettingsFile(unittest.TestCase):
 	"""Test the parsing of the settings file"""
-	valid = os.path.join(DATA_DIR, "tophat_settings/valid.json")
-	invalid = os.path.join(DATA_DIR, "tophat_settings/invalid.json")
+	valid = jread(os.path.join(DATA_DIR, "tophat_settings/valid.json"))
+	invalid = jread(os.path.join(DATA_DIR, "tophat_settings/invalid.json"))
 
 	def test_load_valid(self):
 		"""Test loading a valid file"""
-		th = tophat.load_settings(self.valid)
+		th = tophat.tophat_from_settings(self.valid)
 
-		data = json.loads(open(self.valid).read())
-
-		for option,value in data['options'].iteritems():
+		for option,value in self.valid.iteritems():
 			self.assertEqual(getattr(th, option), value, 
 					"option \'{}\' should be \'{}\', not \'{}\'".format(option,
 						value, getattr(th,option)))
