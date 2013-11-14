@@ -5,8 +5,6 @@ from Bio import SeqIO
 from Bio.SeqRecord import SeqRecord
 from Bio.Seq import Seq
 
-import simplejson as json
-
 verbose = True
 
 class TopHat(command.Command):
