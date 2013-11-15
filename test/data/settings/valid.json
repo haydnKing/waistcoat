@@ -6,11 +6,11 @@
         "sample 2": "GCGAT"
         },
 
-    "tophat_discard": [
+    "discard": [
         "test/data/tophat_data/test_ref"
         ],
 
-    "tophat_discard_settings": {
+    "discard_settings": {
         "max_insertion_length": 5
     },
 
@@ -19,9 +19,9 @@
         "max_insertion_length": 4	
     },
 
-    "tophat_map": "test/data/tophat_data/test_ref",
+    "target": "test/data/tophat_data/test_ref",
 
-    "tophat_map_settings": {
+    "target_settings": {
         "_comment": "Settings go here",
         "max_insertion_length": 3
     }

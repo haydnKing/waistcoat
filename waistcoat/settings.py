@@ -17,27 +17,50 @@ def loads(string):
 	"""Read settings from a JSON formatted string"""
 	return loadd(json.loads(string))
 
-def loadd(data):
+class Settings(object):
+	"""Store the settings fora tophat run"""
 
+	def __init__(self, valid_data):
+		self.barcode_format = data['barcode_format']
+		self.barcodes = data['barcodes']
+
+		self.discard = []
+		if valid_data.has_key('discard'):
+			pass
+
+
+
+
+
+
+
+
+
+
+
+
+
+def loadd(data):
+	"""Read settings from a dictionary"""
 	#test required keys
 	try:
 		validate_barcode_format(data['barcode_format'])
 		validate_barcodes(data['barcodes'], data['barcode_format'])
-		validate_map(data['tophat_map'])
+		validate_map(data['target'])
 	except KeyError, e:
 		raise SettingsError(
 			'Required key \'{}\' not found'.format(
 				e.message))
 
 	#test discard
-	if data.has_key('tophat_discard'):
-		validate_discard(data['tophat_discard'])
+	if data.has_key('discard'):
+		validate_discard(data['discard'])
 		validate_discard_settings(data)
 
 	#test map settings
-	if data.has_key('tophat_map_settings'):
-		validate_tophat_settings('tophat_map_settings', 
-			data['tophat_map_settings'])
+	if data.has_key('map_settings'):
+		validate_tophat_settings('target_settings', 
+			data['target_settings'])
 
 def validate_tophat_settings(desc, settings):
 	try:
@@ -47,7 +70,7 @@ def validate_tophat_settings(desc, settings):
 
 def validate_discard_settings(data):
 	#test individual settings
-	discard = data['tophat_discard']
+	discard = data['discard']
 
 	for i, path in enumerate(discard):
 		index_name = os.path.basename(path)
@@ -55,9 +78,9 @@ def validate_discard_settings(data):
 			validate_tophat_settings(index_name + '_settings', 
 					data[index_name + '_settings'])
 		#test global settings
-		if data.has_key('tophat_discard_settings'):
-			validate_tophat_settings('tophat_discard_settings', 
-				data['tophat_discard_settings'])
+		if data.has_key('discard_settings'):
+			validate_tophat_settings('discard_settings', 
+				data['discard_settings'])
 
 		
 def validate_map(map_to):
@@ -69,7 +92,7 @@ def validate_discard(discard):
 	
 	if not isinstance(discard, (list, basestring)):
 		raise SettingsError(
-			'\'tophat_discard\' should be a string or list of strings, not {}'
+			'\'discard\' should be a string or list of strings, not {}'
 				.format(type(discard)))
 	else:
 		if isinstance(discard, basestring):
@@ -77,7 +100,7 @@ def validate_discard(discard):
 		for i,path in enumerate(discard):
 			if not isinstance(path, basestring):
 				raise SettingsError(
-				('\'tophat_discart\' should be a string or a list of strings, ' +
+				('\'discard\' should be a string or a list of strings, ' +
 					'item {} is a {}').format(i,type(path)))
 			else:
 				if not index_exists(path):
@@ -175,14 +198,14 @@ example_settings = """{
 	"sample 2": "GCGAT"
 	},
 
-"_tophat_discard": "OPTIONAL. Sequences which map to indexes listed here will be discarded",
-"tophat_discard": [
+"_discard": "OPTIONAL. Sequences which map to indexes listed here will be discarded",
+"discard": [
 	"path/to/discard_index_base1",
 	"discard_index_base2"
 	],
 
-"_tophat_discard_settings": "OPTIONAL. Default settings for tophat when discarding",
-"tophat_discard_settings": {
+"_discard_settings": "OPTIONAL. Default settings for tophat when discarding",
+"discard_settings": {
 	"_comment": "settings go here as key value pairs, e.g. this sets --max-insertion-length 5",
 	"max_insertion_length": 5
 },
@@ -192,17 +215,15 @@ example_settings = """{
 	"_comment": "override settings here"
 	},
 
-"_tophat_map": "REQUIRED. Index to perform final map against", 
-"tophat_map": "final_ref",
+"_target": "REQUIRED. Index to perform final map against", 
+"target": "final_ref",
 
-"_tophat_map_settings": "OPTIONAL. Settings for final mapping",
-"tophat_map_settings": {
+"_target_settings": "OPTIONAL. Settings for final mapping",
+"target_map_settings": {
 	"_comment": "Settings go here"
 	}
 }
 """
-
-
 
 class SettingsError(ValueError):
 	pass
