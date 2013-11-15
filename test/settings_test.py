@@ -10,7 +10,7 @@ class SettingsTest(unittest.TestCase):
 	data = os.path.join(DATA_DIR, 'settings/')
 	valid = "valid.json"
 	invalid = ['badbarcode.json','badtophat1.json','badtophat3.json',
-			'nobarcodes.json','noindex2.json','settingsnodiscard.json','valid.json',
+			'nobarcodes.json','noindex2.json','settingsnodiscard.json',
 			'badbarcodes.json','badtophat2.json','nobarcode.json','noindex1.json',
 			'notarget.json','unknownsetting.json','wronglength.json',] 
 
@@ -36,8 +36,6 @@ class SettingsTest(unittest.TestCase):
 			('test/data/tophat_data/test_ref', {'max_insertion_length':4,},),])
 		self.assertEqual(mySettings.target, 
 				('test/data/tophat_data/test_ref', {'max_insertion_length':3,}))
-		
-
 
 	def test_invalid(self):
 		for name in self.invalid:

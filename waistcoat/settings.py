@@ -66,11 +66,27 @@ def validate(data):
 	if data.has_key('discard'):
 		validate_discard(data['discard'])
 		validate_discard_settings(data)
+	elif data.has_key('discard_settings'):
+		raise SettingsError('\'discard_settings\' given but no \'discard\'')
 
 	#test map settings
-	if data.has_key('map_settings'):
+	if data.has_key('target_settings'):
 		validate_tophat_settings('target_settings', 
 			data['target_settings'])
+
+	#check for unused settings
+	known_settings = ['barcode_format', 'barcodes', 'target', 'target_settings',
+			'discard', 'discard_settings',]
+	known_settings += [os.path.basename(index) + '_settings' for index in 
+			data.get('discard', [])]
+	for setting in data.iterkeys():
+		if not isinstance(setting, basestring):
+			raise SettingsError('settings must be strings, not {}'.format(
+				type(setting)))
+		if setting[0] == '_' or setting in known_settings:
+			continue
+		else:
+			raise SettingsError('unknown key \'{}\''.format(setting))
 
 def validate_tophat_settings(desc, settings):
 	try:
