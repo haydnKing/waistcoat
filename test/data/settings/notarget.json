@@ -2,7 +2,7 @@
     "barcode_format" : "BBBNNNNBB",
 
     "barcodes" : {
-        "sample 1": "GACCTA",
+        "sample 1": "ACCTA",
         "sample 2": "GCGAT"
         },
 
@@ -17,8 +17,6 @@
     "test_ref_settings": {
         "max_insertion_length": 4	
     },
-
-    "target": "test/data/tophat_data/test_ref",
 
     "target_settings": {
         "max_insertion_length": 3

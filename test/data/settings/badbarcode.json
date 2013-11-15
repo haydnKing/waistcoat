@@ -1,8 +1,8 @@
 {
-    "barcode_format" : "BBBNNNNBB",
+    "barcode_format" : "BBBNNSNNBB",
 
     "barcodes" : {
-        "sample 1": "GACCTA",
+        "sample 1": "ACCTA",
         "sample 2": "GCGAT"
         },
 

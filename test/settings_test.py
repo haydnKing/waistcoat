@@ -9,13 +9,10 @@ class SettingsTest(unittest.TestCase):
 	"""Test loading of settings"""
 	data = os.path.join(DATA_DIR, 'settings/')
 	valid = "valid.json"
-	invalid = ["nobarcode.json",  
-						 "nofmt.json",  
-						 "wrongchars1.json",
-						 "wrongchars.json",
-						 "wronglength.json",
-						 "wrongtype1.json",
-						 "wrongtype.json",] 
+	invalid = ['badbarcode.json','badtophat1.json','badtophat3.json',
+			'nobarcodes.json','noindex2.json','settingsnodiscard.json','valid.json',
+			'badbarcodes.json','badtophat2.json','nobarcode.json','noindex1.json',
+			'notarget.json','unknownsetting.json','wronglength.json',] 
 
 	def assertRaisesMsg(self, msg, etype, func, *args, **kwargs):
 		try:
@@ -28,11 +25,19 @@ class SettingsTest(unittest.TestCase):
 
 	def test_valid(self):
 		"""Test loading valid settings"""
-		output = settings.loadf(os.path.join(self.data, self.valid))
+		mySettings = settings.loadf(os.path.join(self.data, self.valid))
 
-		self.assertEqual(output, (
-			((0,1,2,6,7), (3,4,5)), 
-			['ATGCA', 'CTACT', 'CTACG',],))
+		self.assertEqual(mySettings.barcode_format, "BBBNNNNBB")
+		self.assertEqual(mySettings.barcodes, {
+        "sample 1": "ACCTA",
+        "sample 2": "GCGAT"
+        })
+		self.assertEqual(mySettings.discard, [
+			('test/data/tophat_data/test_ref', {'max_insertion_length':4,},),])
+		self.assertEqual(mySettings.target, 
+				('test/data/tophat_data/test_ref', {'max_insertion_length':3,}))
+		
+
 
 	def test_invalid(self):
 		for name in self.invalid:

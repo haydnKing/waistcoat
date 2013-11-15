@@ -15,14 +15,12 @@
     },
 
     "test_ref_settings": {
-        "_comment": "override settings here",
         "max_insertion_length": 4	
     },
 
     "target": "test/data/tophat_data/test_ref",
 
     "target_settings": {
-        "_comment": "Settings go here",
         "max_insertion_length": 3
     }
 }

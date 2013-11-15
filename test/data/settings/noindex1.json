@@ -2,12 +2,12 @@
     "barcode_format" : "BBBNNNNBB",
 
     "barcodes" : {
-        "sample 1": "GACCTA",
+        "sample 1": "ACCTA",
         "sample 2": "GCGAT"
         },
 
     "discard": [
-        "test/data/tophat_data/test_ref"
+        "doesnt_exist"
         ],
 
     "discard_settings": {

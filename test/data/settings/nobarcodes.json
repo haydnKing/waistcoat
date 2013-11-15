@@ -1,11 +1,6 @@
 {
     "barcode_format" : "BBBNNNNBB",
 
-    "barcodes" : {
-        "sample 1": "GACCTA",
-        "sample 2": "GCGAT"
-        },
-
     "discard": [
         "test/data/tophat_data/test_ref"
         ],

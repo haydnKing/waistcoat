@@ -2,7 +2,7 @@
     "barcode_format" : "BBBNNNNBB",
 
     "barcodes" : {
-        "sample 1": "GACCTA",
+        "sample 1": "ACCTA",
         "sample 2": "GCGAT"
         },
 
@@ -11,7 +11,7 @@
         ],
 
     "discard_settings": {
-        "max_insertion_length": 5
+        "max_insertion_length": "five"
     },
 
     "test_ref_settings": {

@@ -17,16 +17,25 @@ def loads(string):
 	"""Read settings from a JSON formatted string"""
 	return loadd(json.loads(string))
 
+def loadd(data):
+	"""Read settings from a dictionary"""
+	validate(data)
+	return Settings(data)
+
 class Settings(object):
 	"""Store the settings fora tophat run"""
 
 	def __init__(self, valid_data):
-		self.barcode_format = data['barcode_format']
-		self.barcodes = data['barcodes']
+		self.barcode_format = valid_data['barcode_format']
+		self.barcodes = valid_data['barcodes']
 
 		self.discard = []
 		if valid_data.has_key('discard'):
-			pass
+			for index in valid_data['discard']:
+				self.discard.append((index, 
+					valid_data.get(os.path.basename(index) + '_settings', {})),)
+
+		self.target = (valid_data['target'], valid_data.get('target_settings',{}),)
 
 
 
@@ -40,8 +49,9 @@ class Settings(object):
 
 
 
-def loadd(data):
-	"""Read settings from a dictionary"""
+
+def validate(data):
+	"""validate the settings in data"""
 	#test required keys
 	try:
 		validate_barcode_format(data['barcode_format'])
