@@ -1,4 +1,28 @@
 {
-    "format": "BBBNNNBB",
-    "barcodes": ["ATGCA", "CTact", "ctacg"]
+    "barcode_format" : "BBBNNNNBB",
+
+    "barcodes" : {
+        "sample 1": "ACCTA",
+        "sample 2": "GCGAT"
+        },
+
+    "tophat_discard": [
+        "test/data/tophat_data/test_ref"
+        ],
+
+    "tophat_discard_settings": {
+        "max_insertion_length": 5
+    },
+
+    "test_ref_settings": {
+        "_comment": "override settings here",
+        "max_insertion_length": 4	
+    },
+
+    "tophat_map": "test/data/tophat_data/test_ref",
+
+    "tophat_map_settings": {
+        "_comment": "Settings go here",
+        "max_insertion_length": 3
+    }
 }

@@ -3,12 +3,21 @@ Read and validate settings for waistcoat
 """
 
 import simplejson as json
-import logging
+import os.path, tophat
 
-def read(fname):
+def loadf(fname):
 	"""Read settings from a JSON formatted file"""
+	try:
+		return loads(file(fname).read())
+	except SettingsError, e:
+		e.message = "File {}: {}".format(fname, e.message)
+		raise
 
-	data = json.loads(file(fname).read())
+def loads(string):
+	"""Read settings from a JSON formatted string"""
+	return loadd(json.loads(string))
+
+def loadd(data):
 
 	#test required keys
 	try:
@@ -17,8 +26,8 @@ def read(fname):
 		validate_map(data['tophat_map'])
 	except KeyError, e:
 		raise SettingsError(
-			'Required key \'{}\' not found in settings file \"{}\"'.format(
-				e.message, fname))
+			'Required key \'{}\' not found'.format(
+				e.message))
 
 	#test discard
 	if data.has_key('tophat_discard'):
@@ -44,13 +53,17 @@ def validate_discard_settings(data):
 		index_name = os.path.basename(path)
 		if data.has_key(index_name + '_settings'):
 			validate_tophat_settings(index_name + '_settings', 
-					data[index_name + '_settings')
+					data[index_name + '_settings'])
 		#test global settings
 		if data.has_key('tophat_discard_settings'):
 			validate_tophat_settings('tophat_discard_settings', 
 				data['tophat_discard_settings'])
 
 		
+def validate_map(map_to):
+	if not index_exists(map_to):
+		raise(SettingsError('\'map_to\' index \'{}\' does not exist'
+			.format(map_to)))
 
 def validate_discard(discard):
 	
@@ -59,7 +72,7 @@ def validate_discard(discard):
 			'\'tophat_discard\' should be a string or list of strings, not {}'
 				.format(type(discard)))
 	else:
-		if isinstace(discard, basestring):
+		if isinstance(discard, basestring):
 			discard = [discard,]
 		for i,path in enumerate(discard):
 			if not isinstance(path, basestring):
@@ -88,7 +101,7 @@ def index_exists(path):
 
 	(head, tail) = os.path.split(path)
 	
-	if head = '':
+	if head == '':
 		head = '.'
 
 	if os.path.exists(head):
@@ -98,7 +111,7 @@ def index_exists(path):
 			return True
 	
 	p = os.environ.get('BOWTIE2_INDEXES')
-	if os.path.dirname(path) = '' and p:
+	if os.path.dirname(path) == '' and p:
 		if index_in_dir(p, tail):
 			return True
 	
@@ -123,42 +136,44 @@ def validate_barcode_format(barcode_fmt):
 def validate_barcodes(barcodes, barcode_fmt):
 	length = sum([1 for b in barcode_fmt.upper() if b == 'B'])
 
-	#barcodes must be a list of strings
-	if isinstance(barcodes, basestring):
-		raise SettingsError('\'barcodes\' should be a list of strings')
-		
-	for i,s in enumerate(barcodes):
-		if not isinstance(s, basestring):
-			raise SettingsError(
-					'\'barcodes\'[{}] should be a string, not {}'.format(type(s)))
+	#barcodes must be a dictionary of strings
+	if not isinstance(barcodes, dict):
+		raise SettingsError(
+				'\'barcodes\' should be a dictionary mapping samples to barcodes')
+	
+	for sample,barcode in barcodes.iteritems():
+		if not isinstance(sample, basestring):
+			raise SettingsError('\'barcodes\' sample name should be a string, not{}'
+					.format(type(sample)))
+		if not isinstance(barcode, basestring):
+			raise SettingsError('\'barcodes\' barcode should be a string, not {}'
+					.format(type(barcode)))
+
 		#barcode strings can only contain ATGC
-		for char in s.upper():
+		for char in barcode.upper():
 			if char not in "ATGC":
 				raise SettingsError(
 						'barcodes can only contain A,T,C or Gs, not {}'.format(char))
 				break
 
-		#check whether the barcodes are the right length
-		for barcode in barcodes:
-			if len(barcode) != length:
-				raise SettingsError(
-						'barcodes must be the same length as the format')
-				break
+		#check whether the barcode are the right length
+		if len(barcode) != length:
+			raise SettingsError(
+					('barcodes must be the same length as the format' + 
+					', barcode = {}, format	= {}'.format(len(barcode), length)))
+			break
 
 example_settings = """{
-"_comment": "This is an example settings file for waistcoat. Comments begin
-with underscores",
+"_comment": "This is an example settings file for waistcoat. Comments begin with underscores",
 
-"_barcode_fmt": "REQUIRED. Format of the barcode - 
-												B = Barcode character
-												N = Random (UMI) character",
-"barcode_fmt" : "BBBNNNNBB",
+"_barcode_format": "REQUIRED. Format of the barcode - B = Barcode character N = Random (UMI) character",
+"barcode_format" : "BBBNNNNBB",
 
 "_barcodes": "REQUIRED. A dictionary mapping sample names to barcodes",
 "barcodes" : {
 	"sample 1": "ACCTA",
 	"sample 2": "GCGAT"
-	}
+	},
 
 "_tophat_discard": "OPTIONAL. Sequences which map to indexes listed here will be discarded",
 "tophat_discard": [
@@ -166,26 +181,23 @@ with underscores",
 	"discard_index_base2"
 	],
 
-"_tophat_discard_settings": "OPTIONAL. Default settings for tophat when
-dicarding"
+"_tophat_discard_settings": "OPTIONAL. Default settings for tophat when discarding",
 "tophat_discard_settings": {
-	"_comment": "settings go here as key value pairs, e.g. this sets 
-		--max-insertion-length 5",
+	"_comment": "settings go here as key value pairs, e.g. this sets --max-insertion-length 5",
 	"max_insertion_length": 5
 },
 
-"_discard_index_base1_settings": "OPTIONAL. Override default discard settings
-for a specific index by setting [index_name]_settings",
+"_discard_index_base1_settings": "OPTIONAL. Override default discard settings for a specific index by setting [index_name]_settings",
 "discard_index_base1_settings": {
 	"_comment": "override settings here"
-	}
+	},
 
 "_tophat_map": "REQUIRED. Index to perform final map against", 
-"tophat_map": "final_index",
+"tophat_map": "final_ref",
 
 "_tophat_map_settings": "OPTIONAL. Settings for final mapping",
 "tophat_map_settings": {
-	"_comment": "Settings go here",
+	"_comment": "Settings go here"
 	}
 }
 """
