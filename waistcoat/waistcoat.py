@@ -2,7 +2,7 @@
 
 import argparse
 
-import settings, tophat, preprocess
+import settings, tophat, preprocess, tempfile, shutil
 
 def main():
 	
@@ -11,6 +11,8 @@ def main():
 	run(my_args.settings, myargs.reads.fq.gz, output)
 
 def run(settings_file, reads, outdir):
+	tempdir = tempfile.mkdtemp()
+
 	#Read and validate settings for waistcoat
 	print "Reading settings from \'{}\'".format(settings_file)
 	s = settings.loadf(settings_file)
@@ -25,7 +27,10 @@ def run(settings_file, reads, outdir):
 	for (index, dcs) in s.discard:
 		new_files = []
 		for f in files:
-			new_files.append(tophat.discard_mapped(f, index, settings = dcs))
+			print "tophat.discard_mapped(\'{}\', \'{}\', {})".format(
+					f, index, dcs)
+			new_files.append(tophat.discard_mapped(f, index, 
+				tophat_settings = dcs))
 		files = new_files
 
 	#map to genome
@@ -36,6 +41,8 @@ def run(settings_file, reads, outdir):
 		th.run(f, index_base = s.map)
 		os.remove(f)
 	
+	shutil.rmtree(tempdir)
+
 	#index output SAM file
 
 

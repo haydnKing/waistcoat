@@ -2,13 +2,13 @@
 
 from Bio import SeqIO
 
-import tempfile, os, os.path
+import tempfile, os, os.path, settings
 
 import simplejson as json
 
 verbose = True
 
-def split_by_barcode(in_file, barcode_fmt, barcodes, outdir=None):
+def split_by_barcode(in_file, my_settings, outdir=None):
 	"""
 	Split all the sequences found in in_file into seperate files depending on
 	their barcode, and saves unique sequences to files
@@ -30,29 +30,26 @@ def split_by_barcode(in_file, barcode_fmt, barcodes, outdir=None):
 	if not outdir:
 		outdir = tempfile.mkdtemp(prefix='barcodes')
 
-	files = {'unmapped': os.path.join(outdir, 'unmapped.fq')}
-	count = {'unmapped': 0,}
-	for barcode, sample in barcodes.iteritems():
-		files[barcode] = os.path.join(outdir, '{}_nonunique.fq'.format(sample))
-		count[barcode] = 0
-
-	#open the files
-	for barcode, name in files.iteritems():
+	#initialte count and open files
+	files = {}
+	count = {}
+	total = 0
+	for sample,barcode in my_settings.barcodes.iteritems():
+		name = os.path.join(outdir, '{}_nonunique.fq'.format(sample))
 		files[barcode] = (name, open(name, 'w'))
+		count[barcode] = 0
 
 	if verbose:
 		print "Splitting sequences by barcode..."
 
 	for seq in SeqIO.parse(in_file, 'fastq'):
+		total += 1
 		#get the barcode
-		barcode = str(''.join([seq.seq[x] for x in barcode_fmt]).upper())
+		barcode = my_settings.parse_barcode(seq)[0]
 
-		if barcode in barcodes.iterkeys():
+		if barcode in files.iterkeys():
 			SeqIO.write(seq, files[barcode][1], 'fastq')
 			count[barcode] += 1
-		else:
-			SeqIO.write(seq, files['unmapped'][1], 'fastq')
-			count['unmapped'] += 1
 
 	#close the files
 	for barcode, (fname, out) in files.iteritems():
@@ -60,33 +57,27 @@ def split_by_barcode(in_file, barcode_fmt, barcodes, outdir=None):
 		files[barcode] = fname
 
 	if verbose:
-		print "Found {} sequences".format(sum(count.values()))
-		print str_count(count)
+		print "Found {} sequences".format(total)
+		for sample,barcode in my_settings.barcodes.iteritems():
+			print "{}: {}".format(sample, count[sample])
+		print "unmapped: {}".format(total - sum(count.itervalues()))
 		print "Removing duplicates..."
 
-	removed = 0
-	for barcode, sample in barcodes.iteritems():
+	removed = {}
+	for sample,barcode in my_settings.barcodes.iteritems():
 		out_file = os.path.join(outdir, '{}.fq'.format(sample))
 		out = remove_duplicates(files[barcode], out_file)
 		files[barcode] = out_file
-		rm = out[0] - out[1]
-		count[barcode] -= rm
-		removed += rm
+		removed[barcode] = out[0] - out[1]
 
 	if verbose:
-		print "Removed {} Sequences, {} remaining:".format(removed,
-				sum(count.values()))
-		print str_count(count)
+		for sample,barcode in my_settings.barcodes.iteritems():
+			print "{}: {} -> {} | {}% unique".format(sample, count[sample],
+					count[sample]-removed[sample], 100.0 * count[sample] / (float) (
+						count[sample]-removed[sample]))
 
-	return files
+	return files.values()
 
-def str_count(count):
-	"""return a string representation of the count"""
-	ret = []
-	for barcode, number in count.iteritems():
-		ret.append("\t{}: {}".format(barcode, number))
-
-	return "\n".join(ret)
 
 def str_dist(dist):
 	low = 0
@@ -143,7 +134,7 @@ def remove_duplicates(input_file, output_file):
 
 	return (before, after)
 
-def clean_distributions(in_files, barcode_fmt, min_length = 15, 
+def clean_distributions(in_files, my_settings, min_length = 15, 
 		suffix = '_nopolyA', remove_input=True):
 	"""
 	Removes terminal As
@@ -153,7 +144,7 @@ def clean_distributions(in_files, barcode_fmt, min_length = 15,
 
 	arguments:
 		in_files: list of files to parse
-		barcode_fmt: list of integers containing positions of the barcode
+		settings: settings object
 		min_length: the minimum length of read to retain
 		suffix: suffix to add to output files
 		remove_input: whether or not to delete the input file
@@ -175,8 +166,7 @@ def clean_distributions(in_files, barcode_fmt, min_length = 15,
 			seq = seq[0:len(newseq)]
 
 			#remove barcode
-			barcode_length = max(barcode_fmt)
-			seq = seq[max(barcode_fmt)+1:]
+			seq = my_settings.strip_barcode(seq)
 			
 			if len(seq.seq) < 1024:
 				lengths[len(seq.seq)] += 1

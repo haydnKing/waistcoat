@@ -4,7 +4,7 @@ from os.path import join as pjoin
 from os.path import split as psplit
 import os, shutil
 
-from waistcoat import preprocess
+from waistcoat import preprocess, settings
 
 preprocess.verbose = False
 
@@ -22,16 +22,17 @@ class PreprocessTest(SequenceTest.SequenceTest):
 		reads = pjoin(DATA_DIR, 'test_reads.fq')
 		code1 = pjoin(DATA_DIR, 'expected_1.fq')
 		code2 = pjoin(DATA_DIR, 'expected_2.fq')
-		unmapped = pjoin(DATA_DIR, 'expected_u.fq')
 
-		barcodes = {"TCCA": "barcode_1", "TCTT": "barcode_2",}
-		barcode_fmt = [0,1,2,6]
+		s = settings.Settings({
+			'barcodes': {"barcode_1": 'TCCA', "barcode_2": 'TCTT',},
+			'barcode_format': "BBBNNNB",
+			'target': 'null',})
+		
 
-		expected_files = ["barcode_1.fq", "barcode_2.fq", "unmapped.fq",]
+		expected_files = ["barcode_1.fq", "barcode_2.fq",]
 
 		preprocess.split_by_barcode(reads,
-				barcode_fmt,
-				barcodes,
+				s,
 				self.tempdir)
 
 		#check that the correct files were produced
@@ -40,7 +41,6 @@ class PreprocessTest(SequenceTest.SequenceTest):
 		#check all of the files
 		self.assertSequences(code1, pjoin(self.tempdir, 'barcode_1.fq'))
 		self.assertSequences(code2, pjoin(self.tempdir, 'barcode_2.fq'))
-		self.assertSequences(unmapped, pjoin(self.tempdir, 'unmapped.fq'))
 		
 	def test_clean(self):
 		"""Test clean_distributions"""
@@ -53,7 +53,11 @@ class PreprocessTest(SequenceTest.SequenceTest):
 		#copy test file to tempdir
 		shutil.copyfile(test_input, input_file)
 
-		preprocess.clean_distributions([input_file,], barcode_fmt)
+		s = settings.Settings({
+			'barcodes': {"barcode_1": 'TCCA', "barcode_2": 'TCTT',},
+			'barcode_format': "BBBNNNB",
+			'target': 'null',})
+		preprocess.clean_distributions([input_file,], s)
 
 		#check that the file was deleted
 		self.assertFalse(os.path.exists(input_file), 
