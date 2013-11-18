@@ -1,0 +1,20 @@
+{
+    "barcode_format" : "BBBNNNNBB",
+
+    "barcodes" : {
+        "sample 1": "ACCTA",
+        "sample 2": "GCGAT"
+        },
+
+    "discard": [
+        "rRNA"
+        ],
+
+    "discard_settings": {
+    },
+
+    "target": "genome",
+
+    "target_settings": {
+    }
+}
