@@ -35,11 +35,11 @@ class SettingsTest(unittest.TestCase):
         "sample 2": "GCGAT"
         })
 		self.assertEqual(mySettings.discard, [
-			('test/data/tophat_data/test_ref'    , {'max_insertion_length':4,},),
-			('test/data/tophat_data/test_ref_two', {'max_insertion_length':5,},),
+			('../tophat_data/test_ref'    , {'max_insertion_length':4,},),
+			('../tophat_data/test_ref_two', {'max_insertion_length':5,},),
 			])
 		self.assertEqual(mySettings.target, 
-				('test/data/tophat_data/test_ref', {'max_insertion_length':3,}))
+				('../tophat_data/test_ref', {'max_insertion_length':3,}))
 
 	def test_invalid(self):
 		for name in self.invalid:

@@ -7,7 +7,7 @@
         },
 
     "discard": [
-        "test/data/tophat_data/test_ref"
+        "../tophat_data/test_ref"
         ],
 
     "discard_settings": {

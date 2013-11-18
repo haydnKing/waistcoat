@@ -7,7 +7,7 @@
         },
 
     "discard": [
-        "test/data/tophat_data/test_ref"
+        "../tophat_data/test_ref"
         ],
 
     "discard_settings": {
@@ -18,7 +18,7 @@
         "max_insertion_length": 4	
     },
 
-    "target": "test/data/tophat_data/test_ref",
+    "target": "../tophat_data/test_ref",
 
     "target_settings": {
         "max_insertion_length": 3

@@ -8,18 +8,18 @@ import os.path, tophat
 def loadf(fname):
 	"""Read settings from a JSON formatted file"""
 	try:
-		return loads(file(fname).read())
+		return loads(file(fname).read(), fname)
 	except SettingsError, e:
 		e.message = "File {}: {}".format(fname, e.message)
 		raise
 
-def loads(string):
+def loads(string, fname=None):
 	"""Read settings from a JSON formatted string"""
-	return loadd(json.loads(string))
+	return loadd(json.loads(string), fname)
 
-def loadd(data):
+def loadd(data, fname=None):
 	"""Read settings from a dictionary"""
-	validate(data)
+	validate(data, fname)
 	return Settings(data)
 
 class Settings(object):
@@ -73,13 +73,17 @@ class Settings(object):
 
 
 
-def validate(data):
-	"""validate the settings in data"""
+def validate(data, fname=None):
+	"""validate the settings in data, fname = settings file for relative paths"""
+	base_path = ''
+	if fname:
+		base_path = os.path.dirname(fname)
+
 	#test required keys
 	try:
 		validate_barcode_format(data['barcode_format'])
 		validate_barcodes(data['barcodes'], data['barcode_format'])
-		validate_map(data['target'])
+		validate_map(os.path.join(base_path, data['target']))
 	except KeyError, e:
 		raise SettingsError(
 			'Required key \'{}\' not found'.format(
@@ -87,7 +91,7 @@ def validate(data):
 
 	#test discard
 	if data.has_key('discard'):
-		validate_discard(data['discard'])
+		validate_discard([os.path.join(base_path,d) for d in data['discard']])
 		validate_discard_settings(data)
 	elif data.has_key('discard_settings'):
 		raise SettingsError('\'discard_settings\' given but no \'discard\'')
