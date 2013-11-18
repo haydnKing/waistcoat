@@ -26,7 +26,7 @@ class Settings(object):
 	"""Store the settings fora tophat run"""
 
 	def __init__(self, valid_data):
-		self.barcode_format = valid_data['barcode_format']
+		self.barcode_format = valid_data['barcode_format'].upper()
 		self.barcodes = valid_data['barcodes']
 
 		self.discard = []
@@ -46,9 +46,24 @@ class Settings(object):
 		self.target = (valid_data['target'], valid_data.get('target_settings',{}),)
 
 
+	def strip_barcode(self, record):
+		"""Remove the barcode from the record"""
+		return record[len(self.barcode_format):]
 
 
-
+	def parse_barcode(self, record):
+		"""Return a tuple of (barcode, UMI) as strings"""
+		barcode = []
+		UMI = []
+		for base,code in zip(str(record.seq).upper(), self.barcode_format):
+			if code == 'B':
+				barcode.append(base)
+			elif code == 'N':
+				UMI.append(base)
+			else:
+				raise ValueError(
+					'Invalid barcode format	\'{}\''.format(self.barcode_format))
+		return (''.join(barcode), ''.join(UMI),)
 
 
 
