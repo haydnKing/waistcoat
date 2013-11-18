@@ -31,9 +31,17 @@ class Settings(object):
 
 		self.discard = []
 		if valid_data.has_key('discard'):
+			#for each discard index
 			for index in valid_data['discard']:
-				self.discard.append((index, 
-					valid_data.get(os.path.basename(index) + '_settings', {})),)
+				#find the correct settings
+				discard_settings = {}
+				if valid_data.has_key(os.path.basename(index) + '_settings'):
+					discard_settings = valid_data[os.path.basename(index) + '_settings']
+				elif valid_data.has_key('discard_settings'):
+					discard_settings = valid_data['discard_settings']
+
+				#add to list
+				self.discard.append((index, discard_settings,))
 
 		self.target = (valid_data['target'], valid_data.get('target_settings',{}),)
 
