@@ -32,21 +32,24 @@ def split_by_barcode(in_file, my_settings, outdir=None):
 	total = 0
 	for sample,barcode in my_settings.barcodes.iteritems():
 		files[sample] = tempfile.mkstemp(dir=outdir)
-		files[sample] = (os.fdopen(files[sample][0]), files[sample][1])
-		count[barcode] = 0
+		files[sample] = (os.fdopen(files[sample][0], 'w'), files[sample][1])
+		count[sample] = 0
 
 	if verbose:
 		print "Splitting sequences by barcode..."
+
+	barcode2sample = {}
+	for sample,barcode in my_settings.barcodes.iteritems():
+		barcode2sample[barcode] = sample
 
 	for seq in SeqIO.parse(in_file, 'fastq'):
 		total += 1
 		#get the barcode
 		barcode = my_settings.parse_barcode(seq)[0]
-		sample = my_settings.barcodes.get(barcode, '')
+		sample = barcode2sample.get(barcode, '')
 		if sample in files.iterkeys():
-			print "writing to {}".format(sample)
 			SeqIO.write(seq, files[sample][0], 'fastq')
-			count[barcode] += 1
+			count[sample] += 1
 
 	#close the files
 	for sample, (out, fname) in files.iteritems():
