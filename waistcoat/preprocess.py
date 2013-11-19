@@ -44,6 +44,7 @@ def split_by_barcode(in_file, my_settings, outdir=None):
 		barcode = my_settings.parse_barcode(seq)[0]
 		sample = my_settings.barcodes.get(barcode, '')
 		if sample in files.iterkeys():
+			print "writing to {}".format(sample)
 			SeqIO.write(seq, files[sample][0], 'fastq')
 			count[barcode] += 1
 

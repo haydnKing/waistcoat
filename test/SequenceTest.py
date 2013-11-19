@@ -24,4 +24,4 @@ class SequenceTest(unittest.TestCase):
 		for i,(exp, act) in enumerate(zip(expected, actual)):
 			self.assertEqual(str(exp.seq), str(act.seq),
 				"Sequence mismatch in file \'{}\' (desc=\'{}\')\n{}".format(
-					actual_file, print_seqs(expected,actual)))
+					actual_file, desc, print_seqs(expected,actual)))
