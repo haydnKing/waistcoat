@@ -31,8 +31,8 @@ def split_by_barcode(in_file, my_settings, outdir=None):
 	count = {}
 	total = 0
 	for sample,barcode in my_settings.barcodes.iteritems():
-		name = os.path.join(outdir, '{}_nonunique.fq'.format(sample))
-		files[sample] = (name, open(name, 'w'))
+		files[sample] = tempfile.mkstemp(dir=outdir)
+		files[sample] = (os.fdopen(files[sample][0]), files[sample][1])
 		count[barcode] = 0
 
 	if verbose:
@@ -44,11 +44,11 @@ def split_by_barcode(in_file, my_settings, outdir=None):
 		barcode = my_settings.parse_barcode(seq)[0]
 		sample = my_settings.barcodes.get(barcode, '')
 		if sample in files.iterkeys():
-			SeqIO.write(seq, files[sample][1], 'fastq')
+			SeqIO.write(seq, files[sample][0], 'fastq')
 			count[barcode] += 1
 
 	#close the files
-	for sample, (fname, out) in files.iteritems():
+	for sample, (out, fname) in files.iteritems():
 		out.close()
 		files[sample] = fname
 

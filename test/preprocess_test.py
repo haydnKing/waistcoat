@@ -8,7 +8,8 @@ from waistcoat import preprocess, settings
 
 preprocess.verbose = False
 
-DATA_DIR = pjoin(psplit(__file__)[0], "data/")
+DATA_DIR = pjoin(psplit(__file__)[0], "data/preprocess/")
+
 
 class PreprocessTest(SequenceTest.SequenceTest):
 
@@ -28,19 +29,19 @@ class PreprocessTest(SequenceTest.SequenceTest):
 			'barcode_format': "BBBNNNB",
 			'target': 'null',})
 		
-
-		expected_files = ["barcode_1.fq", "barcode_2.fq",]
-
-		preprocess.split_by_barcode(reads,
-				s,
-				self.tempdir)
+		files = preprocess.split_by_barcode(reads, s, self.tempdir)
 
 		#check that the correct files were produced
-		self.assertEqual(sorted(os.listdir(self.tempdir)), expected_files)
+		self.assertEqual([os.path.join(self.tempdir, f) for f in 
+				sorted(os.listdir(self.tempdir))],
+			sorted(files.values()))
+
+		#check that the correct samples were produced
+		self.assertEqual(sorted(files.keys()), sorted(s.barcodes.keys()))
 
 		#check all of the files
-		self.assertSequences(code1, pjoin(self.tempdir, 'barcode_1.fq'))
-		self.assertSequences(code2, pjoin(self.tempdir, 'barcode_2.fq'))
+		self.assertSequences(code1, files['barcode_1'])
+		self.assertSequences(code2, files['barcode_2'])
 		
 	def test_clean(self):
 		"""Test clean_distributions"""
