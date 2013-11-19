@@ -8,7 +8,9 @@ import os.path, tophat
 def loadf(fname):
 	"""Read settings from a JSON formatted file"""
 	try:
-		return loads(file(fname).read(), fname)
+		data = json.loads(file(fname).read())
+		validate(data, fname)
+		return Settings(data)
 	except SettingsError, e:
 		e.message = "File {}: {}".format(fname, e.message)
 		raise
@@ -19,13 +21,15 @@ def loads(string, fname=None):
 
 def loadd(data, fname=None):
 	"""Read settings from a dictionary"""
-	validate(data, fname)
+	validate(data)
 	return Settings(data)
 
 class Settings(object):
 	"""Store the settings fora tophat run"""
 
 	def __init__(self, valid_data):
+		fname = valid_data.get('_filename', './settings.json')
+
 		self.barcode_format = valid_data['barcode_format'].upper()
 		self.barcodes = valid_data['barcodes']
 
@@ -41,9 +45,10 @@ class Settings(object):
 					discard_settings = valid_data['discard_settings']
 
 				#add to list
-				self.discard.append((index, discard_settings,))
+				self.discard.append((get_index(index, fname), discard_settings,))
 
-		self.target = (valid_data['target'], valid_data.get('target_settings',{}),)
+		self.target = (get_index(valid_data['target'], fname), 
+				valid_data.get('target_settings',{}),)
 
 
 	def strip_barcode(self, record):
@@ -73,17 +78,15 @@ class Settings(object):
 
 
 
-def validate(data, fname=None):
+def validate(data, fname='./settings.json'):
 	"""validate the settings in data, fname = settings file for relative paths"""
-	base_path = ''
-	if fname:
-		base_path = os.path.dirname(fname)
+	data['_filename'] = fname
 
 	#test required keys
 	try:
 		validate_barcode_format(data['barcode_format'])
 		validate_barcodes(data['barcodes'], data['barcode_format'])
-		validate_map(os.path.join(base_path, data['target']))
+		validate_map(data['target'], fname)
 	except KeyError, e:
 		raise SettingsError(
 			'Required key \'{}\' not found'.format(
@@ -91,7 +94,7 @@ def validate(data, fname=None):
 
 	#test discard
 	if data.has_key('discard'):
-		validate_discard([os.path.join(base_path,d) for d in data['discard']])
+		validate_discard(data['discard'], fname)
 		validate_discard_settings(data)
 	elif data.has_key('discard_settings'):
 		raise SettingsError('\'discard_settings\' given but no \'discard\'')
@@ -136,12 +139,12 @@ def validate_discard_settings(data):
 				data['discard_settings'])
 
 		
-def validate_map(map_to):
-	if not index_exists(map_to):
+def validate_map(map_to, fname):
+	if not index_exists(map_to, fname):
 		raise(SettingsError('\'map_to\' index \'{}\' does not exist'
 			.format(map_to)))
 
-def validate_discard(discard):
+def validate_discard(discard, fname):
 	
 	if not isinstance(discard, (list, basestring)):
 		raise SettingsError(
@@ -156,11 +159,11 @@ def validate_discard(discard):
 				('\'discard\' should be a string or a list of strings, ' +
 					'item {} is a {}').format(i,type(path)))
 			else:
-				if not index_exists(path):
+				if not index_exists(path, fname):
 					raise SettingsError(
 							('could not find index \'{}\'').format(path))
 
-def index_exists(path):
+def get_index(path, settings_file= './settings.json'):
 	index_fmt = [
 			'{}.1.bt2', 
 			'{}.2.bt2', 
@@ -175,24 +178,27 @@ def index_exists(path):
 				return False
 		return True
 
-	(head, tail) = os.path.split(path)
-	
-	if head == '':
-		head = '.'
+	(spath, index) = os.path.split(path)
+	#get the path relative to the CWD
+	path = os.path.join(os.path.dirname(settings_file), spath)
+	#remove loops
+	path = os.path.relpath(os.path.abspath(path))
 
-	if os.path.exists(head):
-		if index_in_dir(head, tail):
-			return True
-		if index_in_dir(os.path.join(head,'index/'), tail):
-			return True
-	
+	#if the index exists in the dir
+	if index_in_dir(path, index):
+		return os.path.join(path, index)
+	#if the path is in index/
+	if spath == '' and index_in_dir(os.path.join(path, 'indexes/'), index):
+		return os.path.join(path, 'indexes/', index)
+	#if the path is in the BOWTIE2_INDEXES variable
 	p = os.environ.get('BOWTIE2_INDEXES')
-	if os.path.dirname(path) == '' and p:
-		if index_in_dir(p, tail):
-			return True
+	if spath == '' and p and index_in_dir(p, index):
+		return os.path.join(p, index)
 	
-	return False
+	return None
 
+def index_exists(path, settings_file='./settings.json'):
+	return bool(get_index(path, settings_file))
 
 def validate_barcode_format(barcode_fmt):
 	"""Check that the given format is valid"""
