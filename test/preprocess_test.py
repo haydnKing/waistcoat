@@ -58,7 +58,7 @@ class PreprocessTest(SequenceTest.SequenceTest):
 			'barcodes': {"barcode_1": 'TCCA', "barcode_2": 'TCTT',},
 			'barcode_format': "BBBNNNB",
 			'target': 'null',})
-		preprocess.clean_distributions([input_file,], s)
+		preprocess.clean_distributions({'sample_1': input_file,}, s)
 
 		#check that the file was deleted
 		self.assertFalse(os.path.exists(input_file), 
