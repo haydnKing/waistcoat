@@ -15,20 +15,16 @@ def split_by_barcode(in_file, my_settings, outdir=None):
 
 	arguments:
 		in_file: path to a FASTQ file containing the reads
-		barcode_fmt: list of integers containting positions of the barcode
-		barcodes: dictionary mapping (uppercase) barcode to sample name
-		outdir (optional): output directory - 
-			a temporary one is created if None
+		my_settings: Settings object
+		outdir (optional): output directory - outputs to the same directory as
+			in_file if None
 
 	return:
-		A dictionary mapping barcodes to files, 
-			including an extra file "unmapped"
-		for reads which did not appear to contain a barcode
-		outputs file to outdir
+		A dictionary mapping sample names to file names
 	"""
 	#create a temp dir if necessary
 	if not outdir:
-		outdir = tempfile.mkdtemp(prefix='barcodes')
+		outdir = os.path.dirname(in_file)
 
 	#initialte count and open files
 	files = {}
@@ -36,7 +32,7 @@ def split_by_barcode(in_file, my_settings, outdir=None):
 	total = 0
 	for sample,barcode in my_settings.barcodes.iteritems():
 		name = os.path.join(outdir, '{}_nonunique.fq'.format(sample))
-		files[barcode] = (name, open(name, 'w'))
+		files[sample] = (name, open(name, 'w'))
 		count[barcode] = 0
 
 	if verbose:
@@ -46,38 +42,23 @@ def split_by_barcode(in_file, my_settings, outdir=None):
 		total += 1
 		#get the barcode
 		barcode = my_settings.parse_barcode(seq)[0]
-
-		if barcode in files.iterkeys():
-			SeqIO.write(seq, files[barcode][1], 'fastq')
+		sample = my_settings.barcodes.get(barcode, '')
+		if sample in files.iterkeys():
+			SeqIO.write(seq, files[sample][1], 'fastq')
 			count[barcode] += 1
 
 	#close the files
-	for barcode, (fname, out) in files.iteritems():
+	for sample, (fname, out) in files.iteritems():
 		out.close()
-		files[barcode] = fname
+		files[sample] = fname
 
 	if verbose:
 		print "Found {} sequences".format(total)
 		for sample,barcode in my_settings.barcodes.iteritems():
 			print "{}: {}".format(sample, count[sample])
 		print "unmapped: {}".format(total - sum(count.itervalues()))
-		print "Removing duplicates..."
 
-	removed = {}
-	for sample,barcode in my_settings.barcodes.iteritems():
-		out_file = os.path.join(outdir, '{}.fq'.format(sample))
-		out = remove_duplicates(files[barcode], out_file)
-		files[barcode] = out_file
-		removed[barcode] = out[0] - out[1]
-
-	if verbose:
-		for sample,barcode in my_settings.barcodes.iteritems():
-			print "{}: {} -> {} | {}% unique".format(sample, count[sample],
-					count[sample]-removed[sample], 100.0 * count[sample] / (float) (
-						count[sample]-removed[sample]))
-
-	return files.values()
-
+	return files	
 
 def str_dist(dist):
 	low = 0
@@ -102,40 +83,51 @@ def str_dist(dist):
 	return "\n".join(ret)
 
 
-def remove_duplicates(input_file, output_file):
+def remove_duplicates(in_files, my_settings, outdir=None):
 	"""
 	Removes duplicate sequences from the file
 
 	Arguments:
-		input_file: name of the file to parse
+		input_file: name of the files to parse
 		output_file: name of the file to output too
 
 	Returns:
-		a tuple of (before, after) giving the number of records found in 
-		the file before and after the function is called
+		a dictionary mapping samples to files	
 	"""
-	before = after = 0
+	files = {}
 
-	sequences = []
-	out = open(output_file, 'w')
-	for seq in SeqIO.parse(input_file, 'fastq'):
-		before += 1
-		if not str(seq.seq) in sequences:
-			SeqIO.write(seq, out, 'fastq')
-			sequences.append(str(seq.seq))
-			after += 1
+	stats = {}
 
-	out.close()
+	for sample, f in in_files.iteritems():
+		if verbose:
+			print "Remove Duplicates in {}...".format(sample)
 
-	try:
-		os.remove(input_file)
-	except TypeError:
-		pass
+		out_file = tempfile.mkstemp(prefix='no_duplicates', dir=outdir)
+		before = after = 0
 
-	return (before, after)
+		sequences = []
+		out = open(output_file, 'w')
+		for seq in SeqIO.parse(input_file, 'fastq'):
+			before += 1
+			if not str(seq.seq) in sequences:
+				SeqIO.write(seq, out, 'fastq')
+				sequences.append(str(seq.seq))
+				after += 1
 
-def clean_distributions(in_files, my_settings, min_length = 15, 
-		suffix = '_nopolyA', remove_input=True):
+		out.close()
+		os.remove(f)
+		stats[sample] = (before, after)
+
+	if verbose:
+		print "sample, before, after, % unique"
+		for sample, (before, after) in stats.iteritems():
+			print "{}, {}, {}, {:.1f}%".format(sample, before, after, 
+					100.0 * after / float(before))
+
+	return files
+
+def clean_distributions(in_files, my_settings, outdir=None, min_length = 15, 
+		remove_input=True):
 	"""
 	Removes terminal As
 	Reatains only unique reads
@@ -143,23 +135,24 @@ def clean_distributions(in_files, my_settings, min_length = 15,
 	Discards reads shorter than min_length
 
 	arguments:
-		in_files: list of files to parse
+		in_files: a dictionary mapping samples to files
 		settings: settings object
 		min_length: the minimum length of read to retain
-		suffix: suffix to add to output files
 		remove_input: whether or not to delete the input file
 
 	output:
-		A list of outputted files
+		A dictionary mapping samples to files
 	"""
-	files = []
+	files = {}
 	lengths = [0] * 1024
 
-	for f in in_files:
+	for sample,f in in_files.iteritems():
 		if verbose:
-			print "Cleaning sequences in {}...".format(os.path.split(f)[1])
+			print "Cleaning {}...".format(sample)
 
-		temp_file = tempfile.NamedTemporaryFile()
+		(out_file,out_file_name) = tempfile.mkstemp(dir=outdir)
+		files[sample] = out_file_name
+
 		for seq in SeqIO.parse(f, 'fastq'):
 			#Remove all terminal As and annotations
 			newseq = seq.seq.rstrip('aA')
@@ -172,15 +165,12 @@ def clean_distributions(in_files, my_settings, min_length = 15,
 				lengths[len(seq.seq)] += 1
 
 			if len(seq.seq) > min_length:
-				SeqIO.write(seq, temp_file, 'fastq')
+				SeqIO.write(seq, out_file, 'fastq')
 
 		if remove_input:
 			os.remove(f)
+		out_file.close()
 
-		out_file = "{}{}.fq".format(f[0:f.rfind('.')], suffix)
-		temp_file.seek(0)
-		remove_duplicates(temp_file, out_file)
-		files.append(out_file)
 
 	if verbose:
 		print "Cleaned all sequences, length distribution:"
