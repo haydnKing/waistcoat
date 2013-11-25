@@ -89,7 +89,7 @@ class PreprocessTest(SequenceTest.SequenceTest):
 		self.assertSequences(test_output, output_file)
 
 	def test_duplicates(self):
-		"test remove_duplicate_UMIs"
+		"""test remove_duplicate_UMIs"""
 		input_file = pjoin(self.tempdir, 'duplicates_test.fq')
 		expected = pjoin(DATA_DIR, 'duplicates_out.fq')
 		
@@ -117,5 +117,23 @@ class PreprocessTest(SequenceTest.SequenceTest):
 		#check that the contents of the output file are correct
 		self.assertSequences(expected, output_file)
 
+	def test_run(self):
+		"""test preprocess.run"""
+	
+		reads = pjoin(DATA_DIR, 'run_in.fq')
 
+		s = settings.Settings({
+			'barcodes': {"barcode_1": 'TCCA', "barcode_2": 'TCTT',},
+			'barcode_format': "BBBNNNB",
+			'target': 'null',})
+		
+		files = preprocess.run(reads, s, self.tempdir)
 
+		#check that the correct files were produced
+		self.assertEqual(sorted(files.keys()), ['barcode_1','barcode_2',])
+		self.assertEqual(sorted(files.values()), sorted(
+			[pjoin(self.tempdir, p) for p in os.listdir(self.tempdir)]))
+
+		#check that the sequences are correct
+		self.assertSequences(pjoin(DATA_DIR, 'run_out_bc1.fq'), files['barcode_1'])
+		self.assertSequences(pjoin(DATA_DIR, 'run_out_bc2.fq'), files['barcode_2'])
