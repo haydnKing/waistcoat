@@ -56,13 +56,13 @@ class SettingsObjectTest(unittest.TestCase):
 	def setUp(self):
 		self.settings = settings.loadf(self.data)
 
-	def test_barcode(self):
+	def test_header(self):
 		"""Test the parsing of barcode/UMI"""
-		self.assertEqual(self.settings.parse_barcode(self.record),
+		self.assertEqual(self.settings.parse_header(self.record),
 				('ACTTC', 'GCTA',))
 
 	def test_strip(self):
 		"""Test removal of barcode/UMI"""
-		self.assertEqual(str(self.settings.strip_barcode(self.record).seq),
+		self.assertEqual(str(self.settings.strip_header(self.record).seq),
 				str(self.record[9:].seq))
 

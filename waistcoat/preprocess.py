@@ -45,7 +45,7 @@ def split_by_barcode(in_file, my_settings, outdir=None):
 	for seq in SeqIO.parse(in_file, 'fastq'):
 		total += 1
 		#get the barcode
-		barcode = my_settings.parse_barcode(seq)[0]
+		barcode = my_settings.parse_barcode(seq)
 		sample = barcode2sample.get(barcode, '')
 		if sample in files.iterkeys():
 			SeqIO.write(seq, files[sample][0], 'fastq')
@@ -93,42 +93,26 @@ def remove_duplicate_UMIs(in_files, my_settings, outdir=None):
 
 	Arguments:
 		input_file: name of the files to parse
-		output_file: name of the file to output too
+		output_file: name of the file to output to
+		outdir: name of folder to output to
 
 	Returns:
 		a dictionary mapping samples to files	
 	"""
 	files = {}
 
-	stats = {}
+	for sample, in_file in in_files.iteritems():
+		#store pointers to position in file
+		UMI_2_ref = {}
 
-	for sample, f in in_files.iteritems():
-		if verbose:
-			print "Remove Duplicates in {}...".format(sample)
+		for i,seq in enumerate(SeqIO.parse(in_file, 'fastq')):
+			UMI = my_settings.parse_UMI(seq)
 
-		out_file = tempfile.mkstemp(prefix='no_duplicates', dir=outdir)
-		before = after = 0
 
-		sequences = []
-		out = open(output_file, 'w')
-		for seq in SeqIO.parse(input_file, 'fastq'):
-			before += 1
-			if not str(seq.seq) in sequences:
-				SeqIO.write(seq, out, 'fastq')
-				sequences.append(str(seq.seq))
-				after += 1
-
-		out.close()
-		os.remove(f)
-		stats[sample] = (before, after)
-
-	if verbose:
-		print "sample, before, after, % unique"
-		for sample, (before, after) in stats.iteritems():
-			print "{}, {}, {}, {:.1f}%".format(sample, before, after, 
-					100.0 * after / float(before))
-
-	return files
+		#open the output file
+		(out_file, out_file_name) = tempfile.mkstemp(dir=outdir)
+		out_file = os.fdopen(out_file, 'w')
+		files[sample] = out_file_name
 
 
 def clean_read(seq_in, my_settings):
@@ -137,7 +121,7 @@ def clean_read(seq_in, my_settings):
 	"""
 	#Remove all terminal As and annotations and barcode
 	newseq = seq_in.seq.rstrip('aA')
-	return my_settings.strip_barcode(seq_in[0:len(newseq)])
+	return my_settings.strip_header(seq_in[0:len(newseq)])
 
 def clean_files(in_files, my_settings, outdir=None, min_length = 15, 
 		remove_input=True):

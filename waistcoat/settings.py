@@ -51,29 +51,29 @@ class Settings(object):
 				valid_data.get('target_settings',{}),)
 
 
-	def strip_barcode(self, record):
+	def strip_header(self, record):
 		"""Remove the barcode from the record"""
 		return record[len(self.barcode_format):]
 
 
-	def parse_barcode(self, record):
+	def parse_header(self, record):
 		"""Return a tuple of (barcode, UMI) as strings"""
-		barcode = []
-		UMI = []
+		return (self.parse_barcode(record), self.parse_UMI(record))
+
+	def parse_barcode(self, record):
+		"""return the sequence barcode"""
+		return self._parse(record, 'B')
+
+	def parse_UMI(self, record):
+		"""return the sequence UMI"""
+		return self._parse(record, 'N')
+
+	def _parse(self, record, the_code='B'):
+		ret = []
 		for base,code in zip(str(record.seq).upper(), self.barcode_format):
-			if code == 'B':
-				barcode.append(base)
-			elif code == 'N':
-				UMI.append(base)
-			else:
-				raise ValueError(
-					'Invalid barcode format	\'{}\''.format(self.barcode_format))
-		return (''.join(barcode), ''.join(UMI),)
-
-
-
-
-
+			if code == the_code:
+				ret.append(base)
+		return ''.join(ret).upper()
 
 
 
