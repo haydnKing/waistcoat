@@ -87,7 +87,7 @@ def str_dist(dist):
 	return "\n".join(ret)
 
 
-def remove_duplicates(in_files, my_settings, outdir=None):
+def remove_duplicate_UMIs(in_files, my_settings, outdir=None):
 	"""
 	Removes duplicate sequences from the file
 
@@ -130,7 +130,16 @@ def remove_duplicates(in_files, my_settings, outdir=None):
 
 	return files
 
-def clean_distributions(in_files, my_settings, outdir=None, min_length = 15, 
+
+def clean_read(seq_in, my_settings):
+	"""
+	Remove the poly(A) tail and barcode from seq_in and return the result
+	"""
+	#Remove all terminal As and annotations and barcode
+	newseq = seq_in.seq.rstrip('aA')
+	return my_settings.strip_barcode(seq_in[0:len(newseq)])
+
+def clean_files(in_files, my_settings, outdir=None, min_length = 15, 
 		remove_input=True):
 	"""
 	Removes terminal As
@@ -155,15 +164,11 @@ def clean_distributions(in_files, my_settings, outdir=None, min_length = 15,
 			print "Cleaning {}...".format(sample)
 
 		(out_file,out_file_name) = tempfile.mkstemp(dir=outdir)
+		out_file = os.fdopen(out_file, 'w')
 		files[sample] = out_file_name
 
 		for seq in SeqIO.parse(f, 'fastq'):
-			#Remove all terminal As and annotations
-			newseq = seq.seq.rstrip('aA')
-			seq = seq[0:len(newseq)]
-
-			#remove barcode
-			seq = my_settings.strip_barcode(seq)
+			seq = clean_read(seq, my_settings)
 			
 			if len(seq.seq) < 1024:
 				lengths[len(seq.seq)] += 1

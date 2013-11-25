@@ -6,6 +6,9 @@ import os, shutil
 
 from waistcoat import preprocess, settings
 
+from Bio.SeqRecord import SeqRecord
+from Bio.Seq import Seq
+
 preprocess.verbose = False
 
 DATA_DIR = pjoin(psplit(__file__)[0], "data/preprocess/")
@@ -43,11 +46,22 @@ class PreprocessTest(SequenceTest.SequenceTest):
 		self.assertSequences(code1, files['barcode_1'], 'barcode_1')
 		self.assertSequences(code2, files['barcode_2'], 'barcode_2')
 		
-	def test_clean(self):
-		"""Test clean_distributions"""
+	def test_clean_read(self):
+		"""Test clean_read"""
+		s = settings.Settings({
+			'barcodes': {"barcode_1": 'TCCA', "barcode_2": 'TCTT',},
+			'barcode_format': "BBBNNNB",
+			'target': 'null',})
+		seq = SeqRecord(Seq("actcgatCTCGATCTGAGTGCGAGGTCGGATTTATGCGTGTTAGCAAAAAAA"+
+			"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"))
+
+		out = preprocess.clean_read(seq,s)
+		self.assertEqual(str(out.seq), "CTCGATCTGAGTGCGAGGTCGGATTTATGCGTGTTAGC")
+
+	def test_clean_files(self):
+		"""Test clean_files"""
 		barcode_fmt = [0,1,2,6]
 		input_file = pjoin(self.tempdir, 'clean_test.fq')
-		output_file = pjoin(self.tempdir, 'clean_test_nopolyA.fq')
 		test_input = pjoin(DATA_DIR, 'clean_test.fq')
 		test_output = pjoin(DATA_DIR, 'clean_test_out.fq')
 
@@ -58,7 +72,11 @@ class PreprocessTest(SequenceTest.SequenceTest):
 			'barcodes': {"barcode_1": 'TCCA', "barcode_2": 'TCTT',},
 			'barcode_format': "BBBNNNB",
 			'target': 'null',})
-		preprocess.clean_distributions({'sample_1': input_file,}, s)
+		files = preprocess.clean_files({'sample_1': input_file,}, s)
+
+		#check that the sample persisted
+		self.assertEqual(files.keys(), ['sample_1',])
+		output_file = files['sample_1']
 
 		#check that the file was deleted
 		self.assertFalse(os.path.exists(input_file), 
