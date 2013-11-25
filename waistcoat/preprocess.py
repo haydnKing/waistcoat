@@ -92,7 +92,7 @@ def str_dist(dist):
 		ret.append("\t{:3d}: ({:03d}) |{}".format(
 			i, dist[i], "*" * int(dist[i] * scale)))
 	
-	ret.append("scale: * = {:3d} reads".format(1.0 / scale))
+	ret.append("scale: * = {:.3f} reads".format(1.0 / scale))
 
 	return "\n".join(ret)
 
