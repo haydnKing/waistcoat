@@ -81,7 +81,7 @@ def str_dist(dist):
 		if d != 0:
 			break
 		low += 1
-	for d in reverse(dist):
+	for d in reversed(dist):
 		if d!= 0:
 			break
 		high -= 1
@@ -90,9 +90,9 @@ def str_dist(dist):
 	scale = 60.0 / float(max(dist))
 	for i in range(low, high):
 		ret.append("\t{:3d}: ({:03d}) |{}".format(
-			i, dist[i], "*" * floor(dist[i] * scale)))
+			i, dist[i], "*" * int(dist[i] * scale)))
 	
-	ret.append("scale = {}".format(scale))
+	ret.append("scale: * = {:3d} reads".format(1.0 / scale))
 
 	return "\n".join(ret)
 

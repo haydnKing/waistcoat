@@ -8,7 +8,7 @@ def main():
 	
 	#parse command line
 	my_args = get_arguments()
-	run(my_args.settings, myargs.reads.fq.gz, output)
+	run(my_args.settings, my_args.reads, my_args.output)
 
 def run(settings_file, reads, outdir):
 	tempdir = tempfile.mkdtemp()
@@ -51,7 +51,7 @@ def get_arguments():
 		description="Process RNA-seq reads and map them to a genome")
 
 	parser.add_argument('settings', help='Path to the waistcoat settings file')
-	parser.add_argument('reads.fq.gz', help='GZIPed fastq file containing reads')
+	parser.add_argument('reads', help='GZIPed fastq file containing reads')
 	parser.add_argument('output', nargs='?', default='waistcoat_out/',
 			help='Directory to store output files')
 
