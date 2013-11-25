@@ -43,8 +43,8 @@ class PreprocessTest(SequenceTest.SequenceTest):
 		self.assertEqual(sorted(files.keys()), sorted(s.barcodes.keys()))
 
 		#check all of the files
-		self.assertSequences(code1, files['barcode_1'], 'barcode_1')
-		self.assertSequences(code2, files['barcode_2'], 'barcode_2')
+		self.assertSequences(code1, files['barcode_1'])
+		self.assertSequences(code2, files['barcode_2'])
 		
 	def test_clean_read(self):
 		"""Test clean_read"""
