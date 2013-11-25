@@ -26,7 +26,9 @@ class PipelineTest(unittest.TestCase):
 			for name in sorted(files):
 				output.append(os.path.relpath(os.path.join(path,name), self.tempdir))
 
-		self.assertEqual(output, ['sample 1/accepted_hits.bam',
+		self.assertEqual(output, [
+				'sample 1/accepted_hits.bam',
+				'sample 1/accepted_hits.bam.bai',
 				'sample 1/deletions.bed',
 				'sample 1/insertions.bed',
 				'sample 1/junctions.bed',
@@ -38,6 +40,7 @@ class PipelineTest(unittest.TestCase):
 				'sample 1/logs/run.log',
 				'sample 1/logs/tophat.log',
 				'sample 2/accepted_hits.bam',
+				'sample 2/accepted_hits.bam.bai',
 				'sample 2/deletions.bed',
 				'sample 2/insertions.bed',
 				'sample 2/junctions.bed',
