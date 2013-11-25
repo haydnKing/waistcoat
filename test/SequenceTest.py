@@ -25,3 +25,17 @@ class SequenceTest(unittest.TestCase):
 			self.assertEqual(str(exp.seq), str(act.seq),
 				"Sequence mismatch in file \'{}\' (desc=\'{}\')\n{}".format(
 					actual_file, desc, print_seqs(expected,actual)))
+			self.assertEqual(exp.id, act.id, 
+				"IDs mismatch in file \'{}\' (desc=\'{}\') \'{}\' != \'{}\'".format(
+					actual_file, desc, exp.id, act.id))
+			self.assertEqual(exp.name, act.name,
+				"Name mismatch in file \'{}\' (desc=\'{}\') \'{}\' != \'{}\'".format(
+					actual_file, desc, exp.name, act.name))
+			self.assertEqual(exp.annotations, act.annotations,
+				"annotation mismatch in file \'{}\' (desc=\'{}\'):\n\t" +
+				"exp: {}\n\tact: {}".format(
+					actual_file, desc, exp.annotations, act.annotations))
+			self.assertEqual(exp.letter_annotations, act.letter_annotations,
+				"letter_annotation mismatch in file \'{}\' (desc=\'{}\'):\n\t" +
+				"exp: {}\n\tact: {}".format(
+					actual_file, desc, exp.letter_annotations, act.letter_annotations))
