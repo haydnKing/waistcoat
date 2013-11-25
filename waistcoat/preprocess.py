@@ -9,6 +9,15 @@ import simplejson as json
 
 verbose = True
 
+def run(in_file, my_settings, outdir=None):
+	"""Run the preprocessing pipeline"""
+
+	files = split_by_barcode(in_file, my_settings, outdir)
+	files = remove_duplicate_UMIs(files, my_settings, outdir)
+	files = clean_files(files, my_settings, outdir)
+
+	return files
+
 def split_by_barcode(in_file, my_settings, outdir=None):
 	"""
 	Split all the sequences found in in_file into seperate files depending on
