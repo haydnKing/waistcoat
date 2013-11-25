@@ -60,7 +60,6 @@ class PreprocessTest(SequenceTest.SequenceTest):
 
 	def test_clean_files(self):
 		"""Test clean_files"""
-		barcode_fmt = [0,1,2,6]
 		input_file = pjoin(self.tempdir, 'clean_test.fq')
 		test_input = pjoin(DATA_DIR, 'clean_test.fq')
 		test_output = pjoin(DATA_DIR, 'clean_test_out.fq')
@@ -72,7 +71,7 @@ class PreprocessTest(SequenceTest.SequenceTest):
 			'barcodes': {"barcode_1": 'TCCA', "barcode_2": 'TCTT',},
 			'barcode_format': "BBBNNNB",
 			'target': 'null',})
-		files = preprocess.clean_files({'sample_1': input_file,}, s)
+		files = preprocess.clean_files({'sample_1': input_file,}, s, self.tempdir)
 
 		#check that the sample persisted
 		self.assertEqual(files.keys(), ['sample_1',])
@@ -88,5 +87,35 @@ class PreprocessTest(SequenceTest.SequenceTest):
 
 		#check that the contents of the output file are correct
 		self.assertSequences(test_output, output_file)
+
+	def test_duplicates(self):
+		"test remove_duplicate_UMIs"
+		input_file = pjoin(self.tempdir, 'duplicates_test.fq')
+		expected = pjoin(DATA_DIR, 'duplicates_out.fq')
+		
+		shutil.copyfile(pjoin(DATA_DIR, 'duplicates_test.fq'), input_file)
+
+		s = settings.Settings({
+			'barcodes': {"barcode_1": 'TCCA', "barcode_2": 'TCTT',},
+			'barcode_format': "BBBNNNB",
+			'target': 'null',})
+		files = preprocess.remove_duplicate_UMIs({'sample_1': input_file,}, s,
+				self.tempdir)
+
+		#check that the sample persisted
+		self.assertEqual(files.keys(), ['sample_1',])
+		output_file = files['sample_1']
+
+		#check that the file was deleted
+		self.assertFalse(os.path.exists(input_file), 
+			"Test file {} was not deleted".format(input_file))
+
+		#check that the correct file was produced
+		self.assertTrue(os.path.exists(output_file),
+			"Output file {} was not produced".format(output_file))
+
+		#check that the contents of the output file are correct
+		self.assertSequences(test_output, output_file)
+
 
 
