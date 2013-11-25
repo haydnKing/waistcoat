@@ -2,7 +2,7 @@
 
 import argparse
 
-import settings, tophat, preprocess, tempfile, shutil
+import settings, tophat, preprocess, tempfile, shutil, os,os.path
 
 def main():
 	
@@ -15,30 +15,30 @@ def run(settings_file, reads, outdir):
 
 	#Read and validate settings for waistcoat
 	print "Reading settings from \'{}\'".format(settings_file)
-	s = settings.loadf(settings_file)
+	my_settings = settings.loadf(settings_file)
 
-	#split by barcode
-	files = preprocess.split_by_barcode(reads, s)
-
-	#clean files
-	files = preprocess.clean_distributions(files, s)
+	#run the preprocessing pipeline
+	files = preprocess.run(reads, my_settings, tempdir)
 
 	#discard those which map to discard
-	for (index, dcs) in s.discard:
-		new_files = []
-		for f in files:
+	for (index, dcs) in my_settings.discard:
+		new_files = {}
+		for sample,f in files.iteritems():
 			print "tophat.discard_mapped(\'{}\', \'{}\', {})".format(
-					f, index, dcs)
-			new_files.append(tophat.discard_mapped(f, index, 
-				tophat_settings = dcs))
+					sample, index, dcs)
+			new_files[sample] = tophat.discard_mapped(f, index, 
+																												tophat_settings = dcs)
 		files = new_files
 
 	#map to genome
-	th = tophat.tophat_from_settings(s.map_settings)
-	for f in files:
-		th.output_dir = os.path.join(outdir, os.path.basename(f).split('.')[0])
+	if not os.path.exists(outdir):
+		os.mkdir(outdir)
+	(target, target_settings) = my_settings.target
+	th = tophat.tophat_from_settings(target_settings)
+	for sample,f in files.iteritems():
+		th.output_dir = os.path.join(outdir, sample)
 		os.mkdir(th.output_dir)
-		th.run(f, index_base = s.map)
+		th.run(f, index_base = target)
 		os.remove(f)
 	
 	shutil.rmtree(tempdir)

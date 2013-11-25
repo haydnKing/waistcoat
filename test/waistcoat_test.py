@@ -11,7 +11,6 @@ class PipelineTest(unittest.TestCase):
 
 	@classmethod
 	def setUpClass(self):
-		raise unittest.SkipTest()
 		self.tempdir = tempfile.mkdtemp(prefix='test')
 		waistcoat.run(self.settings_file, self.reads, self.tempdir)
 
@@ -22,11 +21,35 @@ class PipelineTest(unittest.TestCase):
 
 	def test_output(self):
 		"""Test the pipeline outputs the correct files"""
-		print "Output: {}".format(', '.join(os.listdir(self.tempdir)))
-		self.assertTrue(os.path.exists(os.path.join(self.tempdir, 'sample_1.bam')), 
-			"Sample 1 output file missing")
-		self.assertTrue(os.path.exists(os.path.join(self.tempdir, 'sample_2.bam')), 
-			"Sample 2 output file missing")
+		output = []
+		for path, subdirs, files in os.walk(self.tempdir):
+			for name in sorted(files):
+				output.append(os.path.relpath(os.path.join(path,name), self.tempdir))
 
+		self.assertEqual(output, ['sample 1/accepted_hits.bam',
+				'sample 1/deletions.bed',
+				'sample 1/insertions.bed',
+				'sample 1/junctions.bed',
+				'sample 1/prep_reads.info',
+				'sample 1/logs/bowtie.left_kept_reads.log',
+				'sample 1/logs/prep_reads.log',
+				'sample 1/logs/reports.log',
+				'sample 1/logs/reports.samtools_sort.log0',
+				'sample 1/logs/run.log',
+				'sample 1/logs/tophat.log',
+				'sample 2/accepted_hits.bam',
+				'sample 2/deletions.bed',
+				'sample 2/insertions.bed',
+				'sample 2/junctions.bed',
+				'sample 2/prep_reads.info',
+				'sample 2/logs/bowtie.left_kept_reads.log',
+				'sample 2/logs/prep_reads.log',
+				'sample 2/logs/reports.log',
+				'sample 2/logs/reports.samtools_sort.log0',
+				'sample 2/logs/run.log',
+				'sample 2/logs/tophat.log'])
+
+	def test_accepted_hits(self):
+		"""Test the outputted hits"""
 		raise AssertionError("Haven't written this yet")	
 
