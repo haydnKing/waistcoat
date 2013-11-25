@@ -115,7 +115,7 @@ class PreprocessTest(SequenceTest.SequenceTest):
 			"Output file {} was not produced".format(output_file))
 
 		#check that the contents of the output file are correct
-		self.assertSequences(test_output, output_file)
+		self.assertSequences(expected, output_file)
 
 
 

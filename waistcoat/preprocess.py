@@ -1,6 +1,7 @@
 """Preprocess the sequence data"""
 
 from Bio import SeqIO
+from Bio.SeqRecord import SeqRecord
 
 import tempfile, os, os.path, settings
 
@@ -87,7 +88,8 @@ def str_dist(dist):
 	return "\n".join(ret)
 
 
-def remove_duplicate_UMIs(in_files, my_settings, outdir=None):
+def remove_duplicate_UMIs(in_files, my_settings, outdir=None, 
+		remove_input=True):
 	"""
 	Removes duplicate sequences from the file
 
@@ -102,18 +104,50 @@ def remove_duplicate_UMIs(in_files, my_settings, outdir=None):
 	files = {}
 
 	for sample, in_file in in_files.iteritems():
-		#store pointers to position in file
+		#store pointers to position in file indexed by UMI
 		UMI_2_ref = {}
-
 		for i,seq in enumerate(SeqIO.parse(in_file, 'fastq')):
 			UMI = my_settings.parse_UMI(seq)
-
+			if UMI_2_ref.has_key(UMI):
+				UMI_2_ref[UMI].append(i)
+			else:
+				UMI_2_ref[UMI] = [i,]
 
 		#open the output file
 		(out_file, out_file_name) = tempfile.mkstemp(dir=outdir)
 		out_file = os.fdopen(out_file, 'w')
 		files[sample] = out_file_name
 
+		#now replace pointers with SeqRecords, saving as we go
+		for i, seq in enumerate(SeqIO.parse(in_file, 'fastq')):
+			UMI = my_settings.parse_UMI(seq)
+			#replace int with record
+			l = UMI_2_ref[UMI]
+			l.remove(i)
+			l.append(seq)
+			#if we've replaced all the integers then we have all the seq with this
+			#UMI
+			if all(isinstance(x, SeqRecord) for x in l):
+				SeqIO.write(resolve_conflict(l), out_file, 'fastq')
+				del UMI_2_ref[UMI]
+
+		if remove_input:
+			os.remove(in_file)
+		out_file.close()
+
+	return files
+
+def resolve_conflict(seqs):
+	"""resolve conflicts between sequences with the same UMI"""
+	if len(seqs) == 1:
+		return seqs[0]
+
+	seqs = [(s, sum(a for a in s.letter_annotations['phred_quality'])) 
+			for s in seqs]
+	max_q = max(s[1] for s in seqs)
+	seqs = [s for s,qs in seqs if qs == max_q]
+
+	return seqs[0]
 
 def clean_read(seq_in, my_settings):
 	"""
