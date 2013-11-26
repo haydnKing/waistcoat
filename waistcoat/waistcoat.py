@@ -4,6 +4,8 @@ import argparse
 
 import settings, tophat, preprocess, tempfile, shutil, os,os.path, pysam
 
+tophat.verbose = False
+
 def main():
 	
 	#parse command line

@@ -54,5 +54,15 @@ class PipelineTest(unittest.TestCase):
 
 	def test_accepted_hits(self):
 		"""Test the outputted hits"""
+		track1 = pysam.Samfile(
+				os.path.join(self.tempdir, 'sample 1/accepted_hits.bam'), 'rb')
+		for alg in track1.fetch():
+			print alg.name
+
+		track2 = pysam.Samfile(
+				os.path.join(self.tempdir, 'sample 2/accepted_hits.bam'), 'rb')
+		for alg in track2.fetch():
+			print alg.name
+
 		raise AssertionError("Haven't written this yet")	
 
