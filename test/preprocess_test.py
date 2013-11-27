@@ -1,4 +1,4 @@
-import tempfile, unittest, shutil, SequenceTest
+import tempfile, unittest, shutil, testcases
 
 from os.path import join as pjoin
 from os.path import split as psplit
@@ -14,7 +14,7 @@ preprocess.verbose = False
 DATA_DIR = pjoin(psplit(__file__)[0], "data/preprocess/")
 
 
-class PreprocessTest(SequenceTest.SequenceTest):
+class PreprocessTest(testcases.TestFastQ):
 
 	def setUp(self):
 		self.tempdir = tempfile.mkdtemp(prefix="test")
@@ -43,8 +43,8 @@ class PreprocessTest(SequenceTest.SequenceTest):
 		self.assertEqual(sorted(files.keys()), sorted(s.barcodes.keys()))
 
 		#check all of the files
-		self.assertSequences(code1, files['barcode_1'])
-		self.assertSequences(code2, files['barcode_2'])
+		self.assertFastQ(code1, files['barcode_1'])
+		self.assertFastQ(code2, files['barcode_2'])
 		
 	def test_clean_read(self):
 		"""Test clean_read"""
@@ -86,7 +86,7 @@ class PreprocessTest(SequenceTest.SequenceTest):
 			"Output file {} was not produced".format(output_file))
 
 		#check that the contents of the output file are correct
-		self.assertSequences(test_output, output_file)
+		self.assertFastQ(test_output, output_file)
 
 	def test_duplicates(self):
 		"""test remove_duplicate_UMIs"""
@@ -115,7 +115,7 @@ class PreprocessTest(SequenceTest.SequenceTest):
 			"Output file {} was not produced".format(output_file))
 
 		#check that the contents of the output file are correct
-		self.assertSequences(expected, output_file)
+		self.assertFastQ(expected, output_file)
 
 	def test_run(self):
 		"""test preprocess.run"""
@@ -135,5 +135,5 @@ class PreprocessTest(SequenceTest.SequenceTest):
 			[pjoin(self.tempdir, p) for p in os.listdir(self.tempdir)]))
 
 		#check that the sequences are correct
-		self.assertSequences(pjoin(DATA_DIR, 'run_out_bc1.fq'), files['barcode_1'])
-		self.assertSequences(pjoin(DATA_DIR, 'run_out_bc2.fq'), files['barcode_2'])
+		self.assertFastQ(pjoin(DATA_DIR, 'run_out_bc1.fq'), files['barcode_1'])
+		self.assertFastQ(pjoin(DATA_DIR, 'run_out_bc2.fq'), files['barcode_2'])

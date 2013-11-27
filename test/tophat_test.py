@@ -1,6 +1,6 @@
 from waistcoat import tophat
 tophat.verbose = False
-import unittest, os, os.path, tempfile, shutil, SequenceTest
+import unittest, os, os.path, tempfile, shutil, testcases
 import simplejson as json
 
 DATA_DIR = os.path.join( os.path.split(__file__)[0], "data/")
@@ -204,7 +204,7 @@ class TopHatSettingsFile(unittest.TestCase):
 		self.assertTrue(tophat.is_valid(self.valid))
 		self.assertFalse(tophat.is_valid(self.invalid))
 
-class TophatTestRun(SequenceTest.SequenceTest):
+class TophatTestRun(testcases.TestFastQ):
 	"""Test that the tophat class can actually run tophat"""
 
 	def setUp(self):
@@ -272,7 +272,7 @@ class TophatTestRun(SequenceTest.SequenceTest):
 			"Expected output file \'{}\' not produced".format(expected_name))
 
 		
-		self.assertSequences(expected, expected_name)
+		self.assertFastQ(expected, expected_name)
 
 
 		
