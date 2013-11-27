@@ -1,4 +1,4 @@
-import unittest, os.path, tempfile, shutil, pysam
+import unittest, os.path, tempfile, shutil, pysam, re
 from waistcoat import waistcoat
 
 DATA_DIR = os.path.join(os.path.split(__file__)[0], "data/")
@@ -61,20 +61,50 @@ class PipelineTest(unittest.TestCase):
 					'GCTCGACGCTCAGCCGTAGCGCCGCGCG',
 					],
 				'sample 2': [
+					'GTCCGTAGTCCTAGTCGTCATCCCCGTA',
 					'ACTGGACTATTTAGGACGATCGGACTGA',
-					'TACTGGACTATTTAGGACGATCGGACTG',
 					],
 				}
 
-		track1 = pysam.Samfile(
-				os.path.join(self.tempdir, 'sample 1/accepted_hits.bam'), 'rb')
-		for alg in track1.fetch():
-			print alg.name
+		self.validate_samfile('sample 1/accepted_hits.bam', output['sample 1'])
+		self.validate_samfile('sample 2/accepted_hits.bam', output['sample 2'])
 
-		track2 = pysam.Samfile(
-				os.path.join(self.tempdir, 'sample 2/accepted_hits.bam'), 'rb')
-		for alg in track2.fetch():
-			print alg.name
+	def validate_samfile(self, samfile, expected_seqs):
+		"""Check whether the samfile is valid"""
 
-		raise AssertionError("Haven't written this yet")	
+		track = pysam.Samfile(
+				os.path.join(self.tempdir, samfile), 'rb')
+		for alg,exp in zip(track.fetch(), expected_seqs):
+			(name, pos, length, direction) = re.match('(\w+)_(\d+)_(\d+)_([FR])', 
+																									alg.qname).groups()
+			self.assertEqual(name, 'genome', 
+					"Alignment \'{}\' not expected in \'{}\'".format(alg.qname,samfile))
+			if direction == 'F':
+				self.assertFalse(alg.is_reverse, 
+					"Alignment \'{}\' mapped to wrong strand in \'{}\'".format(
+						alg.qname, samfile))
+			else:
+				self.assertTrue(alg.is_reverse, 
+					"Alignment \'{}\' mapped to wrong strand in \'{}\'".format(
+						alg.qname, samfile))
+				exp = reverse_complement(exp)
+				
+			self.assertEqual(alg.seq.upper(), exp,
+					"Sequence mismatch \'{}\' in \'{}\':\n\texpected: {}\n\t  actual: {}"
+					.format(alg.qname, samfile, exp, alg.seq.upper()))
+			self.assertEqual(alg.pos+1, int(pos),
+					"Position mismatch: \'{}\' expected at {} but matched {} in \'{}\'"
+					.format(alg.qname, int(pos), alg.pos+1, samfile))
+
+def reverse_complement(seq):
+	l = {
+			'A': 'T',
+			'T': 'A',
+			'G': 'C',
+			'C': 'G',
+			}
+	ret = []
+	for b in reversed(seq.upper()):
+		ret.append(l[b])
+	return ''.join(ret)
 
