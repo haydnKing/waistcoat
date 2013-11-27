@@ -2,7 +2,7 @@
 
 import argparse
 
-import settings, tophat, preprocess, tempfile, shutil, os,os.path, pysam
+import settings, tophat, preprocess, postprocess, tempfile, shutil, os,os.path, pysam
 
 tophat.verbose = False
 
@@ -41,8 +41,11 @@ def run(settings_file, reads, outdir):
 		th.output_dir = os.path.join(outdir, sample)
 		os.mkdir(th.output_dir)
 		th.run(f, index_base = target)
-		pysam.index(os.path.join(th.output_dir, 'accepted_hits.bam'))
 		os.remove(f)
+		#index the file
+		postprocess.run(os.path.join(th.output_dir, 'accepted_hits.bam'),
+				"{}.fa".format(target))
+		
 	
 	shutil.rmtree(tempdir)
 

@@ -76,7 +76,7 @@ class TestSamfile(unittest.TestCase):
 						alg.qname, samfile))
 				
 			rname = track.getrname(alg.tid)
-			seq = targets[rname][alg.pos:alg.aend+1]
+			seq = targets[rname][int(pos)-1:int(pos)-1 + int(length)]
 			self.assertEqual(alg.seq.upper(), str(seq.seq).upper(),
 					"Sequence mismatch \'{}\' in \'{}\':\n\texpected: {}\n\t  actual: {}"
 					.format(alg.qname, samfile, str(seq.seq).upper(), alg.seq.upper()))

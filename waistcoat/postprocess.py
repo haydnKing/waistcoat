@@ -14,6 +14,9 @@ def run(samfile, genome, target_length = 28):
 	(temp, tempname) = tempfile.mkstemp('w', prefix='postprocess')
 	os.close(temp)
 
+	#make sure there's an index
+	pysam.index(samfile)
+
 	#open the files
 	instream = pysam.Samfile(samfile, 'rb')
 	outstream = pysam.Samfile(tempname, 'wb', template = instream)
@@ -42,6 +45,7 @@ def run(samfile, genome, target_length = 28):
 	shutil.move(tempname, samfile)
 
 	#rebuild index
+	os.remove(samfile + ".bai")
 	pysam.index(samfile)
 			
 
