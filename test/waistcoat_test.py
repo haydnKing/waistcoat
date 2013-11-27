@@ -54,6 +54,18 @@ class PipelineTest(unittest.TestCase):
 
 	def test_accepted_hits(self):
 		"""Test the outputted hits"""
+		
+		output = {
+				'sample 1': [
+					'ACTACTATCTGACTAGACTGGAGGCGCT',
+					'GCTCGACGCTCAGCCGTAGCGCCGCGCG',
+					],
+				'sample 2': [
+					'ACTGGACTATTTAGGACGATCGGACTGA',
+					'TACTGGACTATTTAGGACGATCGGACTG',
+					],
+				}
+
 		track1 = pysam.Samfile(
 				os.path.join(self.tempdir, 'sample 1/accepted_hits.bam'), 'rb')
 		for alg in track1.fetch():
