@@ -43,17 +43,25 @@ class TestFastQ(unittest.TestCase):
 
 class TestSamfile(unittest.TestCase):
 	"""A class for testing samfiles"""
-	def assertBAM(self, samfile, expected_seqs):
+
+	def assertBAM(self, samfile, target):
 		"""Check whether the samfile is valid"""
-		self.assertSamfile(samfile, expected_seqs, 'rb')
+		self.assertSamfile(samfile, target, 'rb')
 
-	def assertSAM(self, samfile, expected_seqs):
+	def assertSAM(self, samfile, target):
 		"""check whether the samfile is valid"""
-		self.assertSamfile(samfile, expected_seqs, 'r')
+		self.assertSamfile(samfile, target, 'r')
 
-	def assertSamfile(self, samfile, expected_seqs, mode='rb'):
+	def assertSamfile(self, samfile, target, mode='rb'):
+		
+		#load the targets into RAM
+		targets = {}
+		for seq in SeqIO.parse(target, 'fasta'):
+			targets[seq.name] = seq
+
+
 		track = pysam.Samfile(samfile, mode)
-		for alg,exp in zip(track.fetch(), expected_seqs):
+		for alg in track.fetch():
 			(name, pos, length, direction) = re.match('(\w+)_(\d+)_(\d+)_([FR])', 
 																									alg.qname).groups()
 			self.assertEqual(name, 'genome', 
@@ -66,11 +74,12 @@ class TestSamfile(unittest.TestCase):
 				self.assertTrue(alg.is_reverse, 
 					"Alignment \'{}\' mapped to wrong strand in \'{}\'".format(
 						alg.qname, samfile))
-				exp = reverse_complement(exp)
 				
-			self.assertEqual(alg.seq.upper(), exp,
+			rname = track.getrname(alg.tid)
+			seq = targets[rname][alg.pos:alg.aend+1]
+			self.assertEqual(alg.seq.upper(), str(seq.seq).upper(),
 					"Sequence mismatch \'{}\' in \'{}\':\n\texpected: {}\n\t  actual: {}"
-					.format(alg.qname, samfile, exp, alg.seq.upper()))
+					.format(alg.qname, samfile, str(seq.seq).upper(), alg.seq.upper()))
 			self.assertEqual(alg.pos+1, int(pos),
 					"Position mismatch: \'{}\' expected at {} but matched {} in \'{}\'"
 					.format(alg.qname, int(pos), alg.pos+1, samfile))

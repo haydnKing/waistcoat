@@ -1,13 +1,13 @@
 import unittest, os.path, tempfile, shutil, testcases
 from waistcoat import waistcoat
 
-DATA_DIR = os.path.join(os.path.split(__file__)[0], "data/")
+DATA_DIR = os.path.join(os.path.split(__file__)[0], "data/pipeline_data/")
 
 class PipelineTest(testcases.TestSamfile):
 	"""Test the pipeline"""
-	settings_file = os.path.join(DATA_DIR, 'pipeline_data/settings.json')
-	reads = os.path.join(DATA_DIR, 'pipeline_data/reads.fq')
-
+	settings_file = os.path.join(DATA_DIR, 'settings.json')
+	reads = os.path.join(DATA_DIR, 'reads.fq')
+	genome = os.path.join(DATA_DIR, 'genome.fa')
 
 	@classmethod
 	def setUpClass(self):
@@ -54,21 +54,10 @@ class PipelineTest(testcases.TestSamfile):
 
 	def test_accepted_hits(self):
 		"""Test the outputted hits"""
-		
-		output = {
-				'sample 1': [
-					'ACTACTATCTGACTAGACTGGAGGCGCT',
-					'GCTCGACGCTCAGCCGTAGCGCCGCGCG',
-					],
-				'sample 2': [
-					'GTCCGTAGTCCTAGTCGTCATCCCCGTA',
-					'ACTGGACTATTTAGGACGATCGGACTGA',
-					],
-				}
-
+			
 		self.assertBAM(os.path.join(self.tempdir, 'sample 1/accepted_hits.bam'), 
-				output['sample 1'])
+				self.genome)
 		self.assertBAM(os.path.join(self.tempdir, 'sample 2/accepted_hits.bam'),
-				output['sample 2'])
+				self.genome)
 
 
