@@ -6,6 +6,9 @@ import settings, tophat, preprocess, postprocess, tempfile, shutil, os,os.path, 
 
 tophat.verbose = False
 
+verbose = True
+check_output = True
+
 def main():
 	
 	#parse command line
@@ -15,8 +18,9 @@ def main():
 def run(settings_file, reads, outdir):
 
 	if os.path.exists(outdir):
-		if not query_yes_no("Output path \"{}\" already exists, overwrite?"
-				.format(outdir)):
+		if (check_output and not 
+				query_yes_no("Output path \"{}\" already exists, overwrite?"
+					.format(outdir))):
 			print "Cannot continue as output already exists"
 			sys.exit(1)
 		
@@ -27,31 +31,46 @@ def run(settings_file, reads, outdir):
 	tempdir = tempfile.mkdtemp()
 
 	#Read and validate settings for waistcoat
-	print "Reading settings from \'{}\'".format(settings_file)
+	if verbose:
+		print "Reading settings from \'{}\'".format(settings_file)
 	my_settings = settings.loadf(settings_file)
 
 	#run the preprocessing pipeline
+	if verbose:
+		print "========== Preprocessing =========="
 	files = preprocess.run(reads, my_settings, tempdir)
 
 	#discard those which map to discard
-	for (index, dcs) in my_settings.discard:
+	if verbose:
+		print "========== Discard =========="
+	for i,(index, dcs) in enumerate(my_settings.discard):
 		new_files = {}
+		if verbose:
+			print "Removing reads which map to \'{}\' ({}/{})...".format(index,
+					i+1, len(my_settings.discard))
 		for sample,f in files.iteritems():
-			print "Discard: {} -> {}".format(sample, index)
+			if verbose:
+				print "\tScanning \'{}\'".format(sample)
 			new_files[sample] = tophat.discard_mapped(f, index, 
 																												tophat_settings = dcs)
 		files = new_files
 
 	#map to genome
 	(target, target_settings) = my_settings.target
+	if verbose:
+		print "========== Map to {} ==========".format(os.path.basename(target))
 	th = tophat.tophat_from_settings(target_settings)
-	for sample,f in files.iteritems():
+	for i,(sample,f) in enumerate(files.iteritems()):
 		th.output_dir = os.path.join(outdir, sample)
 		os.mkdir(th.output_dir)
+		if verbose: print "Mapping {} ({}/{})...".format(sample, i+1, len(files))
 		th.run(f, index_base = target)
 		os.remove(f)
-		#index the file
-		postprocess.run(os.path.join(th.output_dir, 'accepted_hits.bam'),
+		
+	if verbose: print "========== Postprocess =========="
+	for i,(sample,f) in enumerate(files.iteritems()):
+		if verbose: print "{} ({}/{})...".format(sample, i+1, len(files))
+		postprocess.run(os.path.join(outdir, sample, 'accepted_hits.bam'),
 				"{}.fa".format(target))
 		
 	

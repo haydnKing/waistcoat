@@ -67,10 +67,12 @@ def split_by_barcode(in_file, my_settings, outdir=None):
 		files[sample] = fname
 
 	if verbose:
-		print "Found {} sequences".format(total)
+		print "\tFound {} sequences".format(total)
 		for sample,barcode in my_settings.barcodes.iteritems():
-			print "{}: {}".format(sample, count[sample])
-		print "unmapped: {}".format(total - sum(count.itervalues()))
+			print "\t\t{}: {} ({:.1f}%)".format(sample, count[sample], 
+					100.0*float(count[sample]) / float(total))
+		um = total - sum(count.itervalues())
+		print "\t\tunmapped: {:.1f} ({}%)".format(um, 100.0 * um / total)
 
 	return files	
 
@@ -92,7 +94,7 @@ def str_dist(dist):
 		ret.append("\t{:3d}: ({:03d}) |{}".format(
 			i, dist[i], "*" * int(dist[i] * scale)))
 	
-	ret.append("scale: * = {:.3f} reads".format(1.0 / scale))
+	ret.append("\t\t* = {:.3f} reads".format(1.0 / scale))
 
 	return "\n".join(ret)
 

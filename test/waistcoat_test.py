@@ -1,6 +1,9 @@
 import unittest, os.path, tempfile, shutil, testcases
 from waistcoat import waistcoat
 
+waistcoat.verbose = False
+waistcoat.check_output = False
+
 DATA_DIR = os.path.join(os.path.split(__file__)[0], "data/pipeline_data/")
 
 class PipelineTest(testcases.TestSamfile):
