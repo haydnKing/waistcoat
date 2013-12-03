@@ -26,8 +26,7 @@ def run(settings_file, reads, outdir):
 	for (index, dcs) in my_settings.discard:
 		new_files = {}
 		for sample,f in files.iteritems():
-			print "tophat.discard_mapped(\'{}\', \'{}\', {})".format(
-					sample, index, dcs)
+			print "Discard: {} -> {}".format(sample, index)
 			new_files[sample] = tophat.discard_mapped(f, index, 
 																												tophat_settings = dcs)
 		files = new_files
