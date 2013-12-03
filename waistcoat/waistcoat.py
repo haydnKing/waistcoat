@@ -72,11 +72,15 @@ def run(settings_file, reads, outdir):
 		os.remove(f)
 		
 	if verbose: print "========== Postprocess =========="
+	count = {}
 	for i,(sample,f) in enumerate(files.iteritems()):
 		if verbose: print "{} ({}/{})...".format(sample, i+1, len(files))
-		postprocess.run(os.path.join(outdir, sample, 'accepted_hits.bam'),
+		
+		count[sample] = postprocess.run(
+				os.path.join(outdir, sample, 'accepted_hits.bam'), 
 				"{}.fa".format(target))
 		
+	statistics.addValues('final_seqs', count)
 	
 	shutil.rmtree(tempdir)
 

@@ -1,5 +1,5 @@
 
-import pysam, os.path, os, shutil, tempfile
+import pysam, os.path, os, shutil, tempfile, statistics
 from Bio import SeqIO
 
 def run(samfile, genome, target_length = 28):
@@ -21,6 +21,7 @@ def run(samfile, genome, target_length = 28):
 	instream = pysam.Samfile(samfile, 'rb')
 	outstream = pysam.Samfile(tempname, 'wb', template = instream)
 
+	count = 0
 	for alg in instream.fetch():
 		rname = instream.getrname(alg.tid)
 		if targets.has_key(rname):
@@ -36,6 +37,7 @@ def run(samfile, genome, target_length = 28):
 				alg.qual = ('T' * extend) + qual
 				alg.pos = alg.pos - extend
 		outstream.write(alg)
+		count += 1
 	
 	#close up
 	instream.close()
@@ -47,6 +49,8 @@ def run(samfile, genome, target_length = 28):
 	#rebuild index
 	os.remove(samfile + ".bai")
 	pysam.index(samfile)
+
+	return count
 			
 
 def count_a(alg, target):
