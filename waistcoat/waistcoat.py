@@ -1,6 +1,6 @@
 """Main pipeline file"""
 
-import argparse
+import argparse, sys
 
 import settings, tophat, preprocess, postprocess, tempfile, shutil, os,os.path, pysam
 
@@ -13,6 +13,17 @@ def main():
 	run(my_args.settings, my_args.reads, my_args.output)
 
 def run(settings_file, reads, outdir):
+
+	if os.path.exists(outdir):
+		if not query_yes_no("Output path \"{}\" already exists, overwrite?"
+				.format(outdir)):
+			print "Cannot continue as output already exists"
+			sys.exit(1)
+		
+		shutil.rmtree(outdir)
+
+	os.mkdir(outdir)
+
 	tempdir = tempfile.mkdtemp()
 
 	#Read and validate settings for waistcoat
@@ -32,8 +43,6 @@ def run(settings_file, reads, outdir):
 		files = new_files
 
 	#map to genome
-	if not os.path.exists(outdir):
-		os.mkdir(outdir)
 	(target, target_settings) = my_settings.target
 	th = tophat.tophat_from_settings(target_settings)
 	for sample,f in files.iteritems():
@@ -62,5 +71,42 @@ def get_arguments():
 
 	return parser.parse_args()
 
+def query_yes_no(question, default="yes"):
+    """Ask a yes/no question via raw_input() and return their answer.
+
+    "question" is a string that is presented to the user.
+    "default" is the presumed answer if the user just hits <Enter>.
+        It must be "yes" (the default), "no" or None (meaning
+        an answer is required of the user).
+
+    The "answer" return value is one of "yes" or "no".
+    """
+    valid = {"yes":True,   "y":True,  "ye":True,
+             "no":False,     "n":False}
+    if default == None:
+        prompt = " [y/n] "
+    elif default == "yes":
+        prompt = " [Y/n] "
+    elif default == "no":
+        prompt = " [y/N] "
+    else:
+        raise ValueError("invalid default answer: '%s'" % default)
+
+    while True:
+        sys.stdout.write(question + prompt)
+        choice = raw_input().lower()
+        if default is not None and choice == '':
+            return valid[default]
+        elif choice in valid:
+            return valid[choice]
+        else:
+            sys.stdout.write("Please respond with 'yes' or 'no' "\
+                             "(or 'y' or 'n').\n")
+
+
+
+
+
 if __name__ == "__main__":
 	main()
+
