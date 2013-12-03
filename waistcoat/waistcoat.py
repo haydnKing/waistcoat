@@ -1,6 +1,6 @@
 """Main pipeline file"""
 
-import argparse, sys
+import argparse, sys, statistics
 
 import settings, tophat, preprocess, postprocess, tempfile, shutil, os,os.path, pysam
 
@@ -35,6 +35,8 @@ def run(settings_file, reads, outdir):
 		print "Reading settings from \'{}\'".format(settings_file)
 	my_settings = settings.loadf(settings_file)
 
+	statistics.setUp(my_settings.barcodes.keys())
+
 	#run the preprocessing pipeline
 	if verbose:
 		print "========== Preprocessing =========="
@@ -45,15 +47,17 @@ def run(settings_file, reads, outdir):
 		print "========== Discard =========="
 	for i,(index, dcs) in enumerate(my_settings.discard):
 		new_files = {}
+		count = {}
 		if verbose:
 			print "Removing reads which map to \'{}\' ({}/{})...".format(index,
 					i+1, len(my_settings.discard))
 		for sample,f in files.iteritems():
 			if verbose:
 				print "\tScanning \'{}\'".format(sample)
-			new_files[sample] = tophat.discard_mapped(f, index, 
-																												tophat_settings = dcs)
+			(new_files[sample], count[sample]) = (
+					tophat.discard_mapped(f, index, tophat_settings = dcs))
 		files = new_files
+		statistics.addValues('discard_' + os.path.basename(index), count)
 
 	#map to genome
 	(target, target_settings) = my_settings.target
@@ -76,8 +80,9 @@ def run(settings_file, reads, outdir):
 	
 	shutil.rmtree(tempdir)
 
-	#index output SAM file
-
+	if verbose:
+		print "__________ Pipeline Statistics __________"
+		print statistics.prettyString()
 
 def get_arguments():
 	parser = argparse.ArgumentParser(

@@ -91,6 +91,9 @@ class TophatTestOptions(unittest.TestCase):
 	def setUp(self):
 		self.tophat = tophat.TopHat()
 
+	def tearDown(self):
+		pass
+
 	def test_getOptions(self):
 		"""Test that TopHat.getOptions works"""
 
@@ -261,9 +264,11 @@ class TophatTestRun(testcases.TestFastQ):
 		for f in files:
 			shutil.copyfile(os.path.join(data, f), os.path.join(self.output,f))
 
-		fname = tophat.discard_mapped(
+		(fname, length) = tophat.discard_mapped(
 							os.path.join(self.output, 'reads_unmapped.fq'),
 							os.path.join(self.output, 'test_ref'))
+
+		self.assertEqual(length, 2)
 
 		self.assertEqual(fname, expected_name,
 				"discard_mapped expected \'{}\', produced \'{}\'".format(

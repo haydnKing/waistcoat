@@ -221,8 +221,10 @@ def discard_mapped(reads_file, index_base, tophat_settings = None,
 	samfile = pysam.Samfile(os.path.join(tempd, "unmapped.bam"), "rb")
 
 	outfile = open(outfile_name, "wb")
+	count = 0
 	#write out FASTQ records
 	for read in samfile:
+		count += 1
 		SeqIO.write(build_fastq(read), outfile, 'fastq')
 
 
@@ -231,7 +233,7 @@ def discard_mapped(reads_file, index_base, tophat_settings = None,
 
 	outfile.close()
 
-	return outfile_name
+	return (outfile_name, count)
 
 
 # Precompute conversion table

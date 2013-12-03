@@ -4,7 +4,7 @@ from os.path import join as pjoin
 from os.path import split as psplit
 import os, shutil
 
-from waistcoat import preprocess, settings
+from waistcoat import preprocess, settings, statistics
 
 from Bio.SeqRecord import SeqRecord
 from Bio.Seq import Seq
@@ -18,9 +18,11 @@ class PreprocessTest(testcases.TestFastQ):
 
 	def setUp(self):
 		self.tempdir = tempfile.mkdtemp(prefix="test")
+		statistics.recording = False
 
 	def tearDown(self):
 		shutil.rmtree(self.tempdir)
+		statistics.recording = True
 
 	def test_split(self):
 		reads = pjoin(DATA_DIR, 'test_reads.fq')

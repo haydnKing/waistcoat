@@ -3,7 +3,7 @@
 from Bio import SeqIO
 from Bio.SeqRecord import SeqRecord
 
-import tempfile, os, os.path, settings
+import tempfile, os, os.path, settings, statistics
 
 import simplejson as json
 
@@ -74,6 +74,8 @@ def split_by_barcode(in_file, my_settings, outdir=None):
 		um = total - sum(count.itervalues())
 		print "\t\tunmapped: {:.1f} ({}%)".format(um, 100.0 * um / total)
 
+	statistics.addValues('start_seqs', count)
+
 	return files	
 
 def str_dist(dist):
@@ -113,8 +115,10 @@ def remove_duplicate_UMIs(in_files, my_settings, outdir=None,
 		a dictionary mapping samples to files	
 	"""
 	files = {}
+	count = {}
 
 	for sample, in_file in in_files.iteritems():
+		count[sample] = 0
 		#store pointers to position in file indexed by UMI
 		UMI_2_ref = {}
 		for i,seq in enumerate(SeqIO.parse(in_file, 'fastq')):
@@ -140,11 +144,14 @@ def remove_duplicate_UMIs(in_files, my_settings, outdir=None,
 			#UMI
 			if all(isinstance(x, SeqRecord) for x in l):
 				SeqIO.write(resolve_conflict(l), out_file, 'fastq')
+				count[sample] += 1
 				del UMI_2_ref[UMI]
 
 		if remove_input:
 			os.remove(in_file)
 		out_file.close()
+
+	statistics.addValues('unique_seqs', count)
 
 	return files
 
