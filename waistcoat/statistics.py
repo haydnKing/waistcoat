@@ -1,3 +1,5 @@
+import csv, os, os.path
+
 recording = True
 
 #data
@@ -52,6 +54,20 @@ def prettyString():
 		ret.append(line.format(sample, *values))
 
 	return '\n'.join(ret)
+
+def write(directory):
+	"""Write statistics to a directory"""
+	if os.path.isfile(directory):
+		raise ValueError(
+			"\'{}\' should be a directory, not a file".format(directory))
+	if not os.path.exists(directory):
+		os.mkdir(directory)
+	
+	with open(os.path.join(directory, 'pipeline.csv'), 'wb') as csvfile:
+		out = csv.writer(csvfile, delimiter=' ')
+		out.writerow(['sample'] + names)
+		for sample, values in data.iteritems():
+			out.writerow([sample,] + values)
 
 
 

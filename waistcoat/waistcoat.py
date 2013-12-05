@@ -81,6 +81,8 @@ def run(settings_file, reads, outdir):
 				"{}.fa".format(target))
 		
 	statistics.addValues('final_seqs', count)
+
+	statistics.write(os.path.join(outdir, 'statistics'))
 	
 	shutil.rmtree(tempdir)
 
