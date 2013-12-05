@@ -9,7 +9,7 @@ DATA_DIR = os.path.join(os.path.split(__file__)[0], "data/pipeline_data/")
 class PipelineTest(testcases.TestSamfile):
 	"""Test the pipeline"""
 	settings_file = os.path.join(DATA_DIR, 'settings.json')
-	reads = os.path.join(DATA_DIR, 'reads.fq')
+	reads = os.path.join(DATA_DIR, 'reads.fq.gz')
 	genome = os.path.join(DATA_DIR, 'genome.fa')
 
 	@classmethod

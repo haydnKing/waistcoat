@@ -1,6 +1,6 @@
 """Main pipeline file"""
 
-import argparse, sys, statistics
+import argparse, sys, statistics, gzip
 
 import settings, tophat, preprocess, postprocess, tempfile, shutil, os,os.path, pysam
 
@@ -40,6 +40,8 @@ def run(settings_file, reads, outdir):
 	#run the preprocessing pipeline
 	if verbose:
 		print "\n========== Preprocessing =========="
+	if reads.endswith('.gz'):
+		reads = gzip.GzipFile(reads, 'r')
 	files = preprocess.run(reads, my_settings, tempdir)
 
 	#discard those which map to discard
