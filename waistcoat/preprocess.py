@@ -41,7 +41,8 @@ def split_by_barcode(in_file, my_settings, outdir=None):
 	count = {}
 	total = 0
 	for sample,barcode in my_settings.barcodes.iteritems():
-		files[sample] = tempfile.mkstemp(dir=outdir)
+		files[sample] = tempfile.mkstemp(prefix=sample+'.', 
+				suffix='.barcode', dir=outdir)
 		files[sample] = (os.fdopen(files[sample][0], 'w'), files[sample][1])
 		count[sample] = 0
 
@@ -129,7 +130,8 @@ def remove_duplicate_UMIs(in_files, my_settings, outdir=None,
 				UMI_2_ref[UMI] = [i,]
 
 		#open the output file
-		(out_file, out_file_name) = tempfile.mkstemp(dir=outdir)
+		(out_file, out_file_name) = tempfile.mkstemp(
+				prefix=sample+'.', suffix='.unique', dir=outdir)
 		out_file = os.fdopen(out_file, 'w')
 		files[sample] = out_file_name
 
@@ -199,7 +201,8 @@ def clean_files(in_files, my_settings, outdir=None, min_length = 15,
 		if verbose:
 			print "Cleaning {}...".format(sample)
 
-		(out_file,out_file_name) = tempfile.mkstemp(dir=outdir)
+		(out_file,out_file_name) = tempfile.mkstemp(
+				prefix=sample+'.', suffix='.clean', dir=outdir)
 		out_file = os.fdopen(out_file, 'w')
 		files[sample] = out_file_name
 

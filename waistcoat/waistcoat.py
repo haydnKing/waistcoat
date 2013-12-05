@@ -28,7 +28,7 @@ def run(settings_file, reads, outdir):
 
 	os.mkdir(outdir)
 
-	tempdir = tempfile.mkdtemp()
+	tempdir = tempfile.mkdtemp(prefix='waistcoat')
 
 	#Read and validate settings for waistcoat
 	if verbose:
