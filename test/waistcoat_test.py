@@ -54,6 +54,7 @@ class PipelineTest(testcases.TestSamfile):
 				'sample 2/logs/reports.samtools_sort.log0',
 				'sample 2/logs/run.log',
 				'sample 2/logs/tophat.log',
+				'statistics/lengths.csv',
 				'statistics/pipeline.csv',])
 
 	def test_accepted_hits(self):

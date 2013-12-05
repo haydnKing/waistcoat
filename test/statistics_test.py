@@ -16,12 +16,3 @@ class StatisticsTest(unittest.TestCase):
 			'sample2': 3,
 			'unknownSample': 4,})
 
-	def test_string(self):
-		"""test the string produded"""
-		statistics.setUp(['sample1', 'sample2'])
-		statistics.addValues("test", {
-			'sample1': 5,
-			'sample2': 3,})
-
-		self.assertEqual(statistics.prettyString(),
-				"""sample  test\nsample1    5\nsample2    3""")

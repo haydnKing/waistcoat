@@ -39,12 +39,12 @@ def run(settings_file, reads, outdir):
 
 	#run the preprocessing pipeline
 	if verbose:
-		print "========== Preprocessing =========="
+		print "\n========== Preprocessing =========="
 	files = preprocess.run(reads, my_settings, tempdir)
 
 	#discard those which map to discard
 	if verbose:
-		print "========== Discard =========="
+		print "\n========== Discard =========="
 	for i,(index, dcs) in enumerate(my_settings.discard):
 		new_files = {}
 		count = {}
@@ -62,7 +62,7 @@ def run(settings_file, reads, outdir):
 	#map to genome
 	(target, target_settings) = my_settings.target
 	if verbose:
-		print "========== Map to {} ==========".format(os.path.basename(target))
+		print "\n========== Map to {} ==========".format(os.path.basename(target))
 	th = tophat.tophat_from_settings(target_settings)
 	for i,(sample,f) in enumerate(files.iteritems()):
 		th.output_dir = os.path.join(outdir, sample)
@@ -71,14 +71,14 @@ def run(settings_file, reads, outdir):
 		th.run(f, index_base = target)
 		os.remove(f)
 		
-	if verbose: print "========== Postprocess =========="
+	if verbose: print "\n========== Postprocess =========="
 	count = {}
 	for i,(sample,f) in enumerate(files.iteritems()):
 		if verbose: print "{} ({}/{})...".format(sample, i+1, len(files))
 		
-		count[sample] = postprocess.run(
-				os.path.join(outdir, sample, 'accepted_hits.bam'), 
-				"{}.fa".format(target))
+		ah = os.path.join(outdir, sample, 'accepted_hits.bam')
+		count[sample] = postprocess.run(ah,	"{}.fa".format(target))
+		statistics.collectFinalStats(sample, ah)
 		
 	statistics.addValues('final_seqs', count)
 
@@ -87,7 +87,7 @@ def run(settings_file, reads, outdir):
 	shutil.rmtree(tempdir)
 
 	if verbose:
-		print "__________ Pipeline Statistics __________"
+		print "\n__________ Pipeline Statistics __________"
 		print statistics.prettyString()
 
 def get_arguments():
