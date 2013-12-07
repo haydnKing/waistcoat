@@ -15,7 +15,7 @@ def main():
 	my_args = get_arguments()
 	run(my_args.settings, my_args.reads, my_args.output)
 
-def run(settings_file, reads, outdir):
+def run(settings_file, reads, outdir, temp_loc=None):
 
 	if os.path.exists(outdir):
 		if (check_output and not 
@@ -28,7 +28,7 @@ def run(settings_file, reads, outdir):
 
 	os.mkdir(outdir)
 
-	tempdir = tempfile.mkdtemp(prefix='waistcoat')
+	tempdir = tempfile.mkdtemp(prefix='waistcoat', dir=temp_loc)
 
 	#Read and validate settings for waistcoat
 	if verbose:

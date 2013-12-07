@@ -14,8 +14,13 @@ class PipelineTest(testcases.TestSamfile):
 
 	@classmethod
 	def setUpClass(self):
-		self.tempdir = tempfile.mkdtemp(prefix='test')
-		waistcoat.run(self.settings_file, self.reads, self.tempdir)
+		self.tempdir = tempfile.mkdtemp(prefix='test_waistcoat.')
+		try:
+			waistcoat.run(self.settings_file, self.reads, self.tempdir, 
+					temp_loc=self.tempdir)
+		except Exception:
+			shutil.rmtree(self.tempdir)
+			raise
 
 	@classmethod
 	def tearDownClass(self):
