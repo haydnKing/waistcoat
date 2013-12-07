@@ -67,6 +67,9 @@ def split_by_barcode(in_file, my_settings, outdir=None):
 		out.close()
 		files[sample] = fname
 
+	#drop any samples which have no reads
+	drop_empty(files, count)
+
 	if verbose:
 		print "\tFound {} sequences".format(total)
 		for sample,barcode in my_settings.barcodes.iteritems():
@@ -226,4 +229,10 @@ def clean_files(in_files, my_settings, outdir=None, min_length = 15,
 
 	return files
 
-
+def drop_empty(files, count):
+	"""Drop samples which are empty"""
+	for sample in files.iterkeys():
+		if count[sample] == 0:
+			if verbose: print "Dropping \'{}\' as there are no reads"
+			os.remove(files[sample])
+			del files[sample]
