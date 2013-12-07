@@ -115,10 +115,13 @@ def process_sample(in_files, my_settings, outdir=None):
 	out_files = {}
 	count = {}
 
-	if verbose: print "Cleaning Samples"
+	lengths = [0,]*1024
+
 
 	#for each sample
-	for sample,in_file in in_files.iteritems():
+	for i,(sample,in_file) in enumerate(in_files.iteritems()):
+		if verbose: 
+			print "Cleaning sample \'{}\' ({}/{})".format(sample, i+1, len(in_files))
 		count[sample] = 0
 		#prepare output files
 		tempdir = tempfile.mkdtemp(dir=outdir, prefix=sample+'.', suffix='.by_umi')
@@ -145,6 +148,11 @@ def process_sample(in_files, my_settings, outdir=None):
 			f[0].close()
 			UMIs[umi] = f[1]
 
+		if verbose:
+			print "\tUMI usage (min, avg, max) = ({} {} {})".format(
+					min(UMI_usage.itervalues()),
+					sum(UMI_usage.itervalues()) / float(len(UMI_usage)),
+					max(UMI_usage.itervalues()))
 		#GC???
 
 		#open final output file
@@ -171,7 +179,10 @@ def process_sample(in_files, my_settings, outdir=None):
 
 			#resolve conflicts and write
 			for conflict in reads:
-				SeqIO.write(resolve_conflict(conflict), out_file, 'fastq')
+				seq = resolve_conflict(conflict)
+				if len(seq) < 1024:
+					lengths[len(seq)] += 1
+				SeqIO.write(seq, out_file, 'fastq')
 				count[sample] += 1
 
 			#clear reads
@@ -181,6 +192,10 @@ def process_sample(in_files, my_settings, outdir=None):
 		shutil.rmtree(tempdir)
 
 	statistics.addValues('unique_seqs', count)
+
+	if verbose:
+		print "Length distribution:"
+		print str_dist(lengths)
 
 	return out_files
 
