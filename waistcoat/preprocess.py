@@ -10,6 +10,7 @@ import simplejson as json
 verbose = True
 
 DIFF_THRESH = 0.04
+LEN_THRESH = 15
 
 def run(in_file, my_settings, outdir=None):
 	"""Run the preprocessing pipeline"""
@@ -134,8 +135,9 @@ def process_sample(in_files, my_settings, outdir=None):
 		for seq in SeqIO.parse(in_file, 'fastq'):
 			umi = my_settings.parse_UMI(seq)
 			seq = clean_read(seq, my_settings)
-			SeqIO.write(seq, UMIs[umi][0], 'fastq')
 			UMI_usage[umi] += 1
+			if len(seq) > LEN_THRESH:
+				SeqIO.write(seq, UMIs[umi][0], 'fastq')
 		
 		#delete input file and close all the output files
 		os.remove(in_file)
