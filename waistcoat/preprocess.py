@@ -3,18 +3,19 @@
 from Bio import SeqIO
 from Bio.SeqRecord import SeqRecord
 
-import tempfile, os, os.path, settings, statistics
+import tempfile, os, os.path, settings, statistics, itertools, shutil
 
 import simplejson as json
 
 verbose = True
 
+DIFF_THRESH = 0.04
+
 def run(in_file, my_settings, outdir=None):
 	"""Run the preprocessing pipeline"""
 
 	files = split_by_barcode(in_file, my_settings, outdir)
-	files = remove_duplicate_UMIs(files, my_settings, outdir)
-	files = clean_files(files, my_settings, outdir)
+	files = process_sample(files, my_settings, outdir)
 
 	return files
 
@@ -104,64 +105,92 @@ def str_dist(dist):
 
 	return "\n".join(ret)
 
+def all_seqs(length):
+	arg = ['ATGC',]*length
+	return itertools.product(*arg)
 
-def remove_duplicate_UMIs(in_files, my_settings, outdir=None, 
-		remove_input=True):
-	"""
-	Removes duplicate sequences from the file
-
-	Arguments:
-		input_file: name of the files to parse
-		output_file: name of the file to output to
-		outdir: name of folder to output to
-
-	Returns:
-		a dictionary mapping samples to files	
-	"""
-	files = {}
+def process_sample(in_files, my_settings, outdir=None):
+	"""Clean reads and remove non-unique reads"""
+	out_files = {}
 	count = {}
 
-	for sample, in_file in in_files.iteritems():
+	if verbose: print "Cleaning Samples"
+
+	#for each sample
+	for sample,in_file in in_files.iteritems():
 		count[sample] = 0
-		#store pointers to position in file indexed by UMI
-		UMI_2_ref = {}
-		for i,seq in enumerate(SeqIO.parse(in_file, 'fastq')):
-			UMI = my_settings.parse_UMI(seq)
-			if UMI_2_ref.has_key(UMI):
-				UMI_2_ref[UMI].append(i)
-			else:
-				UMI_2_ref[UMI] = [i,]
+		#prepare output files
+		tempdir = tempfile.mkdtemp(dir=outdir, prefix=sample+'.', suffix='.by_umi')
+		UMIs = {}
+		UMI_usage = {}
+		for c in all_seqs(my_settings.UMI_len()):
+			umi = ''.join(c)
+			(f,fname) = tempfile.mkstemp(
+					dir=tempdir, prefix=sample+'.', suffix='.'+umi)
+			UMIs[umi] = (os.fdopen(f, 'w'), fname)
+			UMI_usage[umi] = 0
 
-		#open the output file
-		(out_file, out_file_name) = tempfile.mkstemp(
-				prefix=sample+'.', suffix='.unique', dir=outdir)
-		out_file = os.fdopen(out_file, 'w')
-		files[sample] = out_file_name
+		#open the input file
+		for seq in SeqIO.parse(in_file, 'fastq'):
+			umi = my_settings.parse_UMI(seq)
+			seq = clean_read(seq, my_settings)
+			SeqIO.write(seq, UMIs[umi][0], 'fastq')
+			UMI_usage[umi] += 1
+		
+		#delete input file and close all the output files
+		os.remove(in_file)
+		for umi, f in UMIs.iteritems():
+			f[0].close()
+			UMIs[umi] = f[1]
 
-		#now replace pointers with SeqRecords, saving as we go
-		for i, seq in enumerate(SeqIO.parse(in_file, 'fastq')):
-			UMI = my_settings.parse_UMI(seq)
-			#replace int with record
-			l = UMI_2_ref[UMI]
-			l.remove(i)
-			l.append(seq)
-			#if we've replaced all the integers then we have all the seq with this
-			#UMI
-			if all(isinstance(x, SeqRecord) for x in l):
-				SeqIO.write(resolve_conflict(l), out_file, 'fastq')
+		#GC???
+
+		#open final output file
+		(fd, fname) = tempfile.mkstemp(
+				dir=outdir, prefix=sample+'.', suffix='.clean')
+		out_files[sample] = fname
+		out_file = os.fdopen(fd, 'w')
+		#for each UMI
+		for umi, umi_file in UMIs.iteritems():
+			#load reads into memory, group similar
+			reads = []
+			for seq in SeqIO.parse(umi_file, 'fastq'):
+				if not len(seq):
+					continue
+				#try to find a match. We should do K-means or something
+				for conflict in reads:
+					if diff_seqs(seq, conflict[0]) <= DIFF_THRESH:
+						conflict.append(seq)
+						seq = None
+						break
+				#if this is unique
+				if seq:
+					reads.append([seq,])
+
+			#resolve conflicts and write
+			for conflict in reads:
+				SeqIO.write(resolve_conflict(conflict), out_file, 'fastq')
 				count[sample] += 1
-				del UMI_2_ref[UMI]
 
-		if remove_input:
-			os.remove(in_file)
+			#clear reads
+			del reads
+
 		out_file.close()
+		shutil.rmtree(tempdir)
 
 	statistics.addValues('unique_seqs', count)
 
-	return files
+	return out_files
+
+
+def diff_seqs(lhs, rhs):
+	d = sum(1 for l,r in zip(str(lhs.seq).upper(), str(rhs.seq).upper())
+				if l != r)
+	return float(d) / float(min(len(rhs), len(lhs)))
+
 
 def resolve_conflict(seqs):
-	"""resolve conflicts between sequences with the same UMI"""
+	"""resolve conflicts between sequences with similar sequence"""
 	if len(seqs) == 1:
 		return seqs[0]
 
@@ -179,55 +208,6 @@ def clean_read(seq_in, my_settings):
 	#Remove all terminal As and annotations and barcode
 	newseq = seq_in.seq.rstrip('aA')
 	return my_settings.strip_header(seq_in[0:len(newseq)])
-
-def clean_files(in_files, my_settings, outdir=None, min_length = 15, 
-		remove_input=True):
-	"""
-	Removes terminal As
-	Reatains only unique reads
-	Removes Bar Codes
-	Discards reads shorter than min_length
-
-	arguments:
-		in_files: a dictionary mapping samples to files
-		settings: settings object
-		min_length: the minimum length of read to retain
-		remove_input: whether or not to delete the input file
-
-	output:
-		A dictionary mapping samples to files
-	"""
-	files = {}
-	lengths = [0] * 1024
-
-	for sample,f in in_files.iteritems():
-		if verbose:
-			print "Cleaning {}...".format(sample)
-
-		(out_file,out_file_name) = tempfile.mkstemp(
-				prefix=sample+'.', suffix='.clean', dir=outdir)
-		out_file = os.fdopen(out_file, 'w')
-		files[sample] = out_file_name
-
-		for seq in SeqIO.parse(f, 'fastq'):
-			seq = clean_read(seq, my_settings)
-			
-			if len(seq.seq) < 1024:
-				lengths[len(seq.seq)] += 1
-
-			if len(seq.seq) > min_length:
-				SeqIO.write(seq, out_file, 'fastq')
-
-		if remove_input:
-			os.remove(f)
-		out_file.close()
-
-
-	if verbose:
-		print "Cleaned all sequences, length distribution:"
-		print str_dist(lengths)
-
-	return files
 
 def drop_empty(files, count):
 	"""Drop samples which are empty"""

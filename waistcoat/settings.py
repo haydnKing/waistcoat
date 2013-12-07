@@ -68,6 +68,14 @@ class Settings(object):
 		"""return the sequence UMI"""
 		return self._parse(record, 'N')
 
+	def UMI_len(self):
+		"""length of the UMI"""
+		return len([x for x in self.barcode_format if x == 'N'])
+
+	def barcode_len(self):
+		"""length of the UMI"""
+		return len([x for x in self.barcode_format if x == 'B'])
+
 	def _parse(self, record, the_code='B'):
 		ret = []
 		for base,code in zip(str(record.seq).upper(), self.barcode_format):
