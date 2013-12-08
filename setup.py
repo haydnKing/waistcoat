@@ -1,13 +1,17 @@
 import os
-from setuptools import setup, find_packages
+from setuptools import setup, find_packages, Extension
 
 def read(fname):
 	return open(os.path.join(os.path.dirname(__file__), fname)).read()
+
+preprocess = Extension('waistcoat.preprocess', 
+		sources=['waistcoat/preprocess.c',])
 
 setup(
     name = "waistcoat",
     version = "0.01",
     packages = find_packages(),
+		ext_modules = [preprocess,],
 
     install_requires = ['pysam>=0.7'],
 
