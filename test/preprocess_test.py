@@ -9,7 +9,7 @@ from waistcoat import preprocess, settings, statistics
 from Bio.SeqRecord import SeqRecord
 from Bio.Seq import Seq
 
-preprocess.verbose = False
+#preprocess.verbose = False
 
 DATA_DIR = pjoin(psplit(__file__)[0], "data/preprocess/")
 
