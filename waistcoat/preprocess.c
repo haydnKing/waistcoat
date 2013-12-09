@@ -121,6 +121,9 @@ void FastQSeq_Free(FastQSeq *s)
     free(s->name);
     free(s->seq);
     free(s->qual);
+    s->name = NULL;
+    s->seq = NULL;
+    s->qual = NULL;
 }
 
 size_t FastQSeq_Read(FILE * f, FastQSeq *s)
@@ -189,8 +192,49 @@ size_t FastQSeq_Write(FastQSeq *s, FILE *f)
     return written;
 }
 
+ConflictEl *ConflictEl_New(FastQSeq *seq)
+{
+    ConflictEl *ret = malloc(sizeof(ConflictEl));
+    ret->seq = seq;
+    ret->next = NULL;
+    return ret;
+}
 
+void ConflictEl_Free(ConflictEl *el)
+{
+    FastQSeq_Free(el->seq);
+    if(el->next != NULL)
+        ConflictEl_Free(el->next);
+    free(el);
+}
 
+void ConflictEl_Append(ConflictEl* self, ConflictEl* rhs)
+{
+    rhs->next = self->next;
+    self->next = rhs;
+}
+
+void Conflict_AppendNew(Conflict* self, FastQSeq *seq)
+{
+    Conflict *new = Conflict_New(seq);
+    new->next = self->next;
+    self->next = self;
+}
+
+void Conflict_Free(Conflict* self)
+{
+    ConflictEl_Free(self->first_element);
+    self->first_element = NULL;
+    free(self);
+}
+
+Conflict *Conflict_New(FastQSeq* seq)
+{
+    Conflict *ret = malloc(sizeof(Conflict));
+    ret->first_element = ConflictEl_New(seq);
+    ret->next = NULL;
+    return ret;
+}
 
 
 // ****************************************************************
