@@ -5,6 +5,9 @@
 //modules
 PyObject *os, *os_path, *settings, *stats, *tempfile;
 
+const float BOOST_FACTOR = 2.0;
+const float MATCH_THRESHOLD = 0.04;
+
 // ****************************************************************
 // -------------------------- Functions from modules --------------
 // ****************************************************************
@@ -116,6 +119,15 @@ void get_umi(const FastQSeq* s, const char* barcode_format, char* barcode)
 // -------------------------- Structures --------------------------
 // ****************************************************************
 
+FastQSeq *FastQSeq_New(void)
+{
+    FastQSeq *ret = malloc(sizeof(FastQSeq));
+    ret->name = NULL;
+    ret->seq = NULL;
+    ret->qual = NULL;
+    return ret;
+}
+
 void FastQSeq_Free(FastQSeq *s)
 {
     free(s->name);
@@ -192,6 +204,56 @@ size_t FastQSeq_Write(FastQSeq *s, FILE *f)
     return written;
 }
 
+float FastQSeq_Distance(FastQSeq *lhs, FastQSeq *rhs)
+{
+    int llen = strlen(lhs->seq), rlen = strlen(rhs->seq), i;
+    int len = (llen > rlen) ? rlen : llen;
+    float total = 0.0;
+    for(i = 0; i < len; i++)
+    {
+        if(toupper(lhs->seq[i]) != toupper(rhs->seq[i]))
+            total += 1.0;
+    }
+
+    return total / (float)len;
+}
+
+void FastQSeq_RemoveA(FastQSeq *self)
+{
+    int len = strlen(self->seq), i=0;
+    for(i = len; i >=0; i--)
+    {
+        if(toupper(self->seq[i]) != 'A')
+            break;
+    }
+    if(i < len)
+    {
+        self->seq[i+1] = '\0';
+        self->qual[i+1] = '\0';
+        self->seq = realloc(self->seq, i+1);
+        self->qual= realloc(self->qual, i+1);
+    }
+}
+
+float FastQSeq_Score(FastQSeq *self)
+{
+    float score = 0;
+    int len = strlen(self->seq), i;
+    if(len == 0) return -1.0;
+    for(i = 0; i < len; i++)
+    {
+        score += (float) self->qual[i];
+    }
+    score = score / (float) len;
+
+    //give a boost to ones which are 28 long
+    if(len == 28){
+        score = score * BOOST_FACTOR;
+    }
+
+    return score;
+}
+
 ConflictEl *ConflictEl_New(FastQSeq *seq)
 {
     ConflictEl *ret = malloc(sizeof(ConflictEl));
@@ -212,6 +274,17 @@ void ConflictEl_Append(ConflictEl* self, ConflictEl* rhs)
 {
     rhs->next = self->next;
     self->next = rhs;
+}
+
+void ConflictEl_Remove(ConflictEl* self)
+{
+    ConflictEl *n = self->next;
+    FastQSeq_Free(self->seq);
+    self->seq = n->seq;
+    n->seq = NULL;
+    self->next = n->next;
+    n->next = NULL;
+    free(n);
 }
 
 void Conflict_AppendNew(Conflict* self, FastQSeq *seq)
@@ -236,6 +309,23 @@ Conflict *Conflict_New(FastQSeq* seq)
     return ret;
 }
 
+FastQSeq *Conflict_Resolve(Conflict *self)
+{
+    float max_score = 0.0, score;
+    ConflictEl *el = self->first_element, *winner = NULL;
+    while(el != NULL)
+    {
+        score = FastQSeq_Score(el->seq);
+        if(score < max_score) 
+        {
+            max_score = score;
+            winner = el;
+        }
+        el = el->next;
+    }
+
+    return winner->seq;
+}
 
 // ****************************************************************
 // -------------------------- Module Functions --------------------
@@ -347,9 +437,11 @@ PyObject* split_by_barcode(PyObject *self, PyObject *args)
             {
                 sprintf(err, "Error reading from file \"%s\"", in_file);
                 PyErr_SetString(PyExc_IOError, err);
+                return NULL;
             }
             sprintf(err, "Error parsing file \"%s\"", in_file);
             PyErr_SetString(PyExc_IOError, err);
+            return NULL;
         }
         
         //extract barcode
@@ -409,7 +501,147 @@ PyObject* split_by_barcode(PyObject *self, PyObject *args)
 
 }
 
+PyObject *process_sample(PyObject* self, PyObject *args)
+{
+    //parse arguments
+    PyObject *in_files = NULL, *my_settings = NULL, *ptemp;
+    const char* outdir = "";
+    int delete_input = 1;
+    int ok = PyArg_ParseTuple(args, "O!O|sd", &PyDict_Type, in_files,
+            my_settings, delete_input);
+    if(!ok)
+    {
+        return NULL;
+    }
 
+    //extract barcode format
+    ptemp = PyObject_GetAttrString(my_settings, "barcode_format");
+    if(ptemp == NULL) return NULL;
+    const char* barcode_format = PyString_AsString(ptemp);
+    if(barcode_format == NULL) return NULL;
+    Py_DECREF(ptemp);
+
+    //prepare output dict
+    PyObject* out_files = PyDict_New();
+
+
+    //for each sample and file
+    Py_ssize_t pos = 0;
+    PyObject *isample, *ifile;
+    long count;
+    while(PyDict_Next(in_files, &pos, &isample, &ifile))
+    {
+        count = 0L;
+        const char* in_name = PyString_AsString(ifile), *out_name;
+
+        //open input file
+        FILE *in = fopen(in_name, "rb");
+
+        //load in all seqs
+        FastQSeq *seq = FastQSeq_New();
+        Conflict *conflict_first = NULL, *conflict_last, *conflict;
+        float min, current;
+        ConflictEl *target;
+        while(!feof(in))
+        {
+            int read = FastQSeq_Read(in, seq);
+            if(read == 0)
+            {
+                if(feof(in)) {break;}
+                
+                char err[64+strlen(in_name)];
+                if(ferror(in))
+                {
+                    sprintf(err, "Error reading from file \"%s\"", in_name);
+                    PyErr_SetString(PyExc_IOError, err);
+                    Py_DECREF(out_files);
+                    return NULL;
+                }
+                sprintf(err, "Error parsing file \"%s\"", in_name);
+                PyErr_SetString(PyExc_IOError, err);
+                Py_DECREF(out_files);
+                return NULL;
+            }
+            FastQSeq_RemoveA(seq);
+
+            conflict = conflict_first;
+            //first case
+            if(conflict_first == NULL)
+            {
+                conflict_first = Conflict_New(seq);
+                conflict_last = conflict_first;
+                continue;
+            }
+            //find the closest matching conflict
+            target = NULL;
+            min = 10.0 * MATCH_THRESHOLD;
+            while(conflict != NULL)
+            {
+                current = FastQSeq_Distance(seq, conflict->first_element->seq);
+                if(current < min)
+                {
+                    min = current;
+                    target = conflict->first_element;
+                }
+                conflict = conflict->next;
+            }
+
+            //if there is a matching conflict
+            if(target != NULL)
+            {
+                ConflictEl_Append(target, ConflictEl_New(seq));
+            }
+            else //if no conflict is close enough
+            {
+                Conflict_AppendNew(conflict_last, seq);
+                conflict_last = conflict_last->next;
+            }
+        }
+
+        //close input
+        fclose(in);
+        
+        //create and open output file
+        const char* ssample = PyString_AsString(isample);
+        char sample_dot[strlen(ssample)+1];
+        sprintf(sample_dot, "%s.", ssample);
+        FILE *out = tempfile_mkstemp3(outdir, sample_dot, ".clean", &out_name);
+        
+        //store output file
+        ptemp = PyString_FromString(out_name);
+        PyDict_SetItem(out_files, isample, ptemp);
+        Py_DECREF(ptemp);
+
+
+        //resolve conflicts and save the winner
+        conflict = conflict_first;
+        count = 0;
+        while(conflict != NULL)
+        {
+            seq = Conflict_Resolve(conflict);
+            FastQSeq_Write(seq, out);
+            count += 1;
+
+            conflict_first = conflict->next;
+            Conflict_Free(conflict);
+            conflict = conflict_first;
+        }
+
+        //delete input
+        if(delete_input)
+        {
+            if(!remove(in_name))
+            {
+                char e[32+strlen(in_name)];
+                sprintf(e, "Failed to remove file \"%s\"", in_name);
+                PyErr_SetString(PyExc_IOError, e);
+            }
+        }
+    }
+
+
+    return out_files;
+}
 
 // Function table
 static PyMethodDef

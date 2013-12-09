@@ -5,9 +5,13 @@ typedef struct {
     char *name, *seq, *qual;
 } FastQSeq;
 
+FastQSeq *FastQSeq_New(void);
 size_t FastQSeq_Write(FastQSeq *s, FILE *f);
 size_t FastQSeq_Read(FILE * f, FastQSeq *s);
 void FastQSeq_Free(FastQSeq *s);
+float FastQSeq_Distance(FastQSeq *lhs, FastQSeq *rhs);
+void FastQSeq_RemoveA(FastQSeq *self);
+float FastQSeq_Score(FastQSeq *self);
 
 typedef struct ConflictEl ConflictEl;
 
@@ -22,6 +26,8 @@ ConflictEl *ConflictEl_New(FastQSeq *seq);
 void ConflictEl_Free(ConflictEl *el);
 //Add an element after self
 void ConflictEl_Append(ConflictEl* self, ConflictEl* rhs);
+//remove an element - the address is then filled by next
+void ConflictEl_Remove(ConflictEl* self);
 
 typedef struct Conflict Conflict;
 
@@ -36,4 +42,7 @@ void Conflict_AppendNew(Conflict* self, FastQSeq *seq);
 void Conflict_Free(Conflict* self);
 //Create a new conflict
 Conflict *Conflict_New(FastQSeq* seq);
+//resolve a conflict
+FastQSeq *Conflict_Resolve(Conflict *self);
+
 
