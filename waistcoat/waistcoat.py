@@ -40,9 +40,19 @@ def run(settings_file, reads, outdir, temp_loc=None):
 	#run the preprocessing pipeline
 	if verbose:
 		print "\n========== Preprocessing =========="
+	remove_input = False
 	if reads.endswith('.gz'):
-		reads = gzip.GzipFile(reads, 'r')
-	files = preprocess.run(reads, my_settings, tempdir)
+		print "Inflating..."
+		gzfile = gzip.GzipFile(reads, 'r')
+		(out, reads) = tempfile.mkstemp(dir=tempdir, prefix='input.', 
+											suffix='.inflated')
+		out = os.fdopen(out, 'w')
+		out.write_lines(gzfile)
+		gzfile.close()
+		out.close()
+		remove_input = True
+
+	files = preprocess.run(reads, my_settings, tempdir, remove_input)
 
 	#discard those which map to discard
 	if verbose:
