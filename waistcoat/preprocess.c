@@ -762,6 +762,50 @@ PyObject *process_sample(PyObject* self, PyObject *args)
     return out_files;
 }
 
+PyObject* run(PyObject *self, PyObject *args)
+{
+    PyObject *my_settings, *files1, *files2;
+    const char *in_file, *outdir;
+    int remove_input = 0;
+    int ok = PyArg_ParseTuple(args, "sOs|d", &in_file, &my_settings, &outdir,
+            &remove_input);
+    if(!ok)
+    {
+        return NULL;
+    }
+
+    //test that in_file exists?
+
+    //fetch the functions
+    PyObject *s_b_b = PyObject_GetAttrString(self, "split_by_barcode");
+    PyObject *p_s   = PyObject_GetAttrString(self, "process_sample");
+    if(s_b_b == NULL)
+    {
+        PyErr_SetString(PyExc_AttributeError, "split_by_barcode");
+        Py_DECREF(my_settings);
+        return NULL;
+    }
+    if(p_s == NULL)
+    {
+        PyErr_SetString(PyExc_AttributeError, "process_sample");
+        Py_DECREF(my_settings);
+        return NULL;
+    }
+
+    //call split_by_barcode
+    files1 = PyObject_CallFunction(s_b_b, "sOsb", in_file, my_settings,
+                outdir, remove_input);
+    if(files1 == NULL) return NULL;
+    
+
+    files2 = PyObject_CallFunction(p_s, "OOsb", files1, my_settings,
+            outdir, 1);
+    Py_DECREF(files1);
+    if(files2 == NULL) return NULL;
+
+    return files2;
+}
+
 // Function table
 static PyMethodDef
 module_functions[] = {
