@@ -7,11 +7,12 @@ typedef struct {
 
 FastQSeq *FastQSeq_New(void);
 size_t FastQSeq_Write(FastQSeq *s, FILE *f);
-size_t FastQSeq_Read(FILE * f, FastQSeq *s);
+size_t FastQSeq_Read(FILE * f, FastQSeq **s);
 void FastQSeq_Free(FastQSeq *s);
 float FastQSeq_Distance(FastQSeq *lhs, FastQSeq *rhs);
 void FastQSeq_RemoveA(FastQSeq *self);
-float FastQSeq_Score(FastQSeq *self);
+float FastQSeq_Score(FastQSeq *self, int target_length);
+void FastQSeq_Offset(FastQSeq *self, int offset);
 
 typedef struct ConflictEl ConflictEl;
 
@@ -43,6 +44,6 @@ void Conflict_Free(Conflict* self);
 //Create a new conflict
 Conflict *Conflict_New(FastQSeq* seq);
 //resolve a conflict
-FastQSeq *Conflict_Resolve(Conflict *self);
+FastQSeq *Conflict_Resolve(Conflict *self, int target_length);
 
 

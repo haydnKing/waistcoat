@@ -7,6 +7,7 @@ PyObject *os, *os_path, *settings, *stats, *tempfile;
 
 const float BOOST_FACTOR = 2.0;
 const float MATCH_THRESHOLD = 0.04;
+const size_t MIN_LENGTH = 15;
 
 // ****************************************************************
 // -------------------------- Functions from modules --------------
@@ -138,7 +139,7 @@ void FastQSeq_Free(FastQSeq *s)
     s->qual = NULL;
 }
 
-size_t FastQSeq_Read(FILE * f, FastQSeq *s)
+size_t FastQSeq_Read(FILE * f, FastQSeq **s)
 {
     if(feof(f)) {return 0;}
     size_t read = 0, buffsize = 1024, pos, len;
@@ -148,8 +149,8 @@ size_t FastQSeq_Read(FILE * f, FastQSeq *s)
     if(fgets(buff, buffsize, f) == NULL) {return 0;}
     read += strlen(buff);
     if(buff[0] != '@') return 0;
-    s->name = malloc(strlen(buff));
-    strcpy(s->name, buff+1);
+    char* name = malloc(strlen(buff));
+    strcpy(name, buff+1);
 
     //read the seq
     pos = 0;
@@ -163,12 +164,16 @@ size_t FastQSeq_Read(FILE * f, FastQSeq *s)
         }
         pos = strlen(buff);
         if((buffsize - pos) == 0 || (buffsize - pos) > buffsize)
+        {
+            free(buff);
+            free(name);
             return 0;
+        }
     }
     read += pos;
     len = pos;
-    s->seq = malloc(len);
-    strcpy(s->seq, buff);
+    char *seq = malloc(len);
+    strcpy(seq, buff);
 
     //read the quality
     pos = 0;
@@ -179,17 +184,21 @@ size_t FastQSeq_Read(FILE * f, FastQSeq *s)
         if(pos >= len) break;
     }
     read += pos;
-    s->qual = malloc(len);
-    strcpy(s->qual, buff);
+    char* qual = malloc(len);
+    strcpy(qual, buff);
 
     free(buff);
 
-
     //remove trailing \n
-    s->name[strlen(s->name)-1] = '\0';
-    s->seq [strlen(s->seq )-1] = '\0';
-    s->qual[strlen(s->qual)-1] = '\0';
+    name[strlen(name)-1] = '\0';
+    seq [strlen(seq )-1] = '\0';
+    qual[strlen(qual)-1] = '\0';
 
+    //create the object
+    *s = FastQSeq_New();
+    (*s)->name = name;
+    (*s)->seq = seq;
+    (*s)->qual = qual;
     return read;
 }
 
@@ -208,6 +217,9 @@ float FastQSeq_Distance(FastQSeq *lhs, FastQSeq *rhs)
 {
     int llen = strlen(lhs->seq), rlen = strlen(rhs->seq), i;
     int len = (llen > rlen) ? rlen : llen;
+    if(len == 0){
+        return -1;
+    }
     float total = 0.0;
     for(i = 0; i < len; i++)
     {
@@ -221,12 +233,12 @@ float FastQSeq_Distance(FastQSeq *lhs, FastQSeq *rhs)
 void FastQSeq_RemoveA(FastQSeq *self)
 {
     int len = strlen(self->seq), i=0;
-    for(i = len; i >=0; i--)
+    for(i = len-1; i >=0; i--)
     {
         if(toupper(self->seq[i]) != 'A')
             break;
     }
-    if(i < len)
+    if(i < len-1)
     {
         self->seq[i+1] = '\0';
         self->qual[i+1] = '\0';
@@ -235,7 +247,7 @@ void FastQSeq_RemoveA(FastQSeq *self)
     }
 }
 
-float FastQSeq_Score(FastQSeq *self)
+float FastQSeq_Score(FastQSeq *self, int target_length)
 {
     float score = 0;
     int len = strlen(self->seq), i;
@@ -247,11 +259,17 @@ float FastQSeq_Score(FastQSeq *self)
     score = score / (float) len;
 
     //give a boost to ones which are 28 long
-    if(len == 28){
+    if(len == target_length){
         score = score * BOOST_FACTOR;
     }
 
     return score;
+}
+
+void FastQSeq_Offset(FastQSeq *self, int offset)
+{
+    self->seq = self->seq + offset;
+    self->qual = self->qual + offset;
 }
 
 ConflictEl *ConflictEl_New(FastQSeq *seq)
@@ -291,7 +309,7 @@ void Conflict_AppendNew(Conflict* self, FastQSeq *seq)
 {
     Conflict *new = Conflict_New(seq);
     new->next = self->next;
-    self->next = self;
+    self->next = new;
 }
 
 void Conflict_Free(Conflict* self)
@@ -309,21 +327,20 @@ Conflict *Conflict_New(FastQSeq* seq)
     return ret;
 }
 
-FastQSeq *Conflict_Resolve(Conflict *self)
+FastQSeq *Conflict_Resolve(Conflict *self, int target_length)
 {
     float max_score = 0.0, score;
     ConflictEl *el = self->first_element, *winner = NULL;
     while(el != NULL)
     {
-        score = FastQSeq_Score(el->seq);
-        if(score < max_score) 
+        score = FastQSeq_Score(el->seq, target_length);
+        if(score > max_score) 
         {
             max_score = score;
             winner = el;
         }
         el = el->next;
     }
-
     return winner->seq;
 }
 
@@ -343,13 +360,11 @@ PyObject* split_by_barcode(PyObject *self, PyObject *args)
     const char* in_file = NULL, * out_dir = NULL;
     PyObject* my_settings = NULL, * files, * barcodes, * count;
     int remove_input = 0;
-    int ok = PyArg_ParseTuple(args, "sO|si", &in_file, &my_settings, &out_dir,
+    int ok = PyArg_ParseTuple(args, "sOs|i", &in_file, &my_settings, &out_dir,
             &remove_input);
     if(!ok){
         return NULL;
     }
-    if (out_dir == NULL)
-        out_dir = "";
 
     if(verbose == Py_True)
     {
@@ -424,7 +439,7 @@ PyObject* split_by_barcode(PyObject *self, PyObject *args)
     char barcode[strlen(barcode_format)+1];
 
     //for each seq
-    FastQSeq seq;
+    FastQSeq * seq;
     PyObject * c;
     while(!feof(in) && !ferror(in)){
         int read = FastQSeq_Read(in, &seq);
@@ -447,13 +462,13 @@ PyObject* split_by_barcode(PyObject *self, PyObject *args)
         //extract barcode
         //write it to the correct file
 
-        get_barcode(&seq, barcode_format, barcode);
+        get_barcode(seq, barcode_format, barcode);
 
         for(i=0; i < num_samples; i++)
         {
             if(strcmp(barcode, barcode_seqs[i]) == 0)
             {
-                FastQSeq_Write(&seq, open_files[i]);
+                FastQSeq_Write(seq, open_files[i]);
                 c = PyDict_GetItem(count, sample_names[i]);
                 c = PyInt_FromLong(1 + PyInt_AsLong(c));
                 PyDict_SetItem(count, sample_names[i], c);
@@ -463,7 +478,7 @@ PyObject* split_by_barcode(PyObject *self, PyObject *args)
         }
 
 
-        FastQSeq_Free(&seq);
+        FastQSeq_Free(seq);
     }
     fclose(in);
 
@@ -505,14 +520,15 @@ PyObject *process_sample(PyObject* self, PyObject *args)
 {
     //parse arguments
     PyObject *in_files = NULL, *my_settings = NULL, *ptemp;
-    const char* outdir = "";
+    const char* outdir = NULL;
     int delete_input = 1;
-    int ok = PyArg_ParseTuple(args, "O!O|sd", &PyDict_Type, in_files,
-            my_settings, delete_input);
+    int ok = PyArg_ParseTuple(args, "O!Os|d", &PyDict_Type, &in_files,
+            &my_settings, &outdir, &delete_input);
     if(!ok)
     {
         return NULL;
     }
+
 
     //extract barcode format
     ptemp = PyObject_GetAttrString(my_settings, "barcode_format");
@@ -520,10 +536,11 @@ PyObject *process_sample(PyObject* self, PyObject *args)
     const char* barcode_format = PyString_AsString(ptemp);
     if(barcode_format == NULL) return NULL;
     Py_DECREF(ptemp);
+    size_t barcode_length = strlen(barcode_format);
+
 
     //prepare output dict
     PyObject* out_files = PyDict_New();
-
 
     //for each sample and file
     Py_ssize_t pos = 0;
@@ -531,20 +548,20 @@ PyObject *process_sample(PyObject* self, PyObject *args)
     long count;
     while(PyDict_Next(in_files, &pos, &isample, &ifile))
     {
-        count = 0L;
         const char* in_name = PyString_AsString(ifile), *out_name;
+
 
         //open input file
         FILE *in = fopen(in_name, "rb");
 
         //load in all seqs
-        FastQSeq *seq = FastQSeq_New();
+        FastQSeq *seq = NULL;
         Conflict *conflict_first = NULL, *conflict_last, *conflict;
         float min, current;
         ConflictEl *target;
         while(!feof(in))
         {
-            int read = FastQSeq_Read(in, seq);
+            int read = FastQSeq_Read(in, &seq);
             if(read == 0)
             {
                 if(feof(in)) {break;}
@@ -563,6 +580,10 @@ PyObject *process_sample(PyObject* self, PyObject *args)
                 return NULL;
             }
             FastQSeq_RemoveA(seq);
+            if((strlen(seq->seq)-barcode_length) < MIN_LENGTH)
+            {
+                continue;
+            }
 
             conflict = conflict_first;
             //first case
@@ -578,6 +599,11 @@ PyObject *process_sample(PyObject* self, PyObject *args)
             while(conflict != NULL)
             {
                 current = FastQSeq_Distance(seq, conflict->first_element->seq);
+                if(current < 0.0)
+                {
+                    conflict = conflict->next;
+                    continue;
+                }
                 if(current < min)
                 {
                     min = current;
@@ -612,20 +638,24 @@ PyObject *process_sample(PyObject* self, PyObject *args)
         PyDict_SetItem(out_files, isample, ptemp);
         Py_DECREF(ptemp);
 
-
         //resolve conflicts and save the winner
         conflict = conflict_first;
         count = 0;
         while(conflict != NULL)
         {
-            seq = Conflict_Resolve(conflict);
+            seq = Conflict_Resolve(conflict, barcode_length + 28);
+            FastQSeq_Offset(seq, barcode_length);
             FastQSeq_Write(seq, out);
+            FastQSeq_Offset(seq, -barcode_length);
             count += 1;
 
             conflict_first = conflict->next;
             Conflict_Free(conflict);
             conflict = conflict_first;
         }
+
+        //close output
+        fclose(out);
 
         //delete input
         if(delete_input)
@@ -646,8 +676,15 @@ PyObject *process_sample(PyObject* self, PyObject *args)
 // Function table
 static PyMethodDef
 module_functions[] = {
+    {"process_sample", process_sample, METH_VARARGS,
+        "process_sample(files, my_settings, outdir, remove_input=True)\n"
+            "  Clean samples and remove duplicates\n"
+            "    files: dict mapping sample names to files\n"
+            "    my_settings: settings.Settings object\n"
+            "    outdir: directory to output to\n"
+            "    remove_input: whether to remove the input files [True]"},
     {"split_by_barcode", split_by_barcode, METH_VARARGS,
-        "split_by_barcode(filename, my_settings, outdir='', remove_input=False)"
+        "split_by_barcode(filename, my_settings, outdir, remove_input=False)"
         " Split the fastq sequences found in filename into seperate files"
         " defined by my_settings, saving the files in outdir"},
     { NULL } //sentinel

@@ -61,7 +61,7 @@ class PreprocessTest(testcases.TestFastQ):
 		self.assertEqual(str(out.seq), "CTCGATCTGAGTGCGAGGTCGGATTTATGCGTGTTAGC")
 
 	def test_process_sample(self):
-		"""Test [rpcess"""
+		"""Test process_sample"""
 		input_file = pjoin(self.tempdir, 'process_test.fq')
 		test_input = pjoin(DATA_DIR, 'process_test.fq')
 		test_output = pjoin(DATA_DIR, 'process_test_out.fq')
