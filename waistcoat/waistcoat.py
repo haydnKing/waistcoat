@@ -52,7 +52,6 @@ def run(settings_file, reads, outdir, temp_loc=None):
 		out.close()
 		remove_input = True
 
-	print "run({}, {}, {}, {})".format(reads, my_settings, tempdir, remove_input)
 	files = preprocess.run(reads, my_settings, tempdir, remove_input)
 
 	#discard those which map to discard

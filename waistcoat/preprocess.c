@@ -62,12 +62,12 @@ FILE *tempfile_mkstemp0(const char** filename)
     return tempfile_mkstemp3("", "", "", filename);
 }
 
-int stats_addvalues(PyObject* values)
+int stats_addvalues(const char* name, PyObject* values)
 {
     PyObject* addValues = PyObject_GetAttrString(stats, "addValues");
     if(addValues == NULL) return -1;
 
-    PyObject* ret = PyObject_CallFunctionObjArgs(addValues, values, NULL);
+    PyObject* ret = PyObject_CallFunction(addValues, "sO", name, values);
     if(ret == NULL) return -1;
 
     return 0;
@@ -183,7 +183,6 @@ FastQSeq *FastQSeq_New(void)
 
 void FastQSeq_Free(FastQSeq *s)
 {
-    printf("FastQSeq_Free(seq@(%p))\n", (void*)s);
     free(s->name);
     free(s->seq);
     free(s->qual);
@@ -195,7 +194,6 @@ void FastQSeq_Free(FastQSeq *s)
 
 size_t FastQSeq_Read(FILE * f, FastQSeq **s)
 {
-    printf("FastQSeq_Read(f, s)\n");
     if(feof(f)) {return 0;}
     size_t read = 0, buffsize = 1024, pos, len;
     char * buff = malloc(buffsize);
@@ -239,7 +237,6 @@ size_t FastQSeq_Read(FILE * f, FastQSeq **s)
     //null-terminate
     buff[len] = '\0';
     read += pos;
-    printf("pos = %ld, len = %ld, strlen(buff) = %ld\n", pos, len, strlen(buff));
     char* qual = malloc(len+1);
     strcpy(qual, buff);
 
@@ -250,11 +247,6 @@ size_t FastQSeq_Read(FILE * f, FastQSeq **s)
     (*s)->name = name;
     (*s)->seq = seq;
     (*s)->qual = qual;
-    printf("-> seq@(%p)\n", (void*)(*s));
-    printf("\t-> name@(%p) = \"%s\"\n", (void*)(*s)->name, (*s)->name);
-    printf("\t->  seq@(%p) = \"%s\"\n", (void*) (*s)->seq, (*s)->seq);
-    printf("\t-> qual@(%p) = \"%s\"\n", (void*) (*s)->qual, (*s)->qual);
-    printf("\t-> read = %ld\n", read);
     return read;
 }
 
@@ -513,7 +505,6 @@ PyObject* split_by_barcode(PyObject *self, PyObject *args)
 //  int read;
 //  while(!feof(in) && !ferror(in)){
 //      read = FastQSeq_Read(in, &seq);
-//      printf("seq@(%p)\n", (void*)seq);
 //      if(read == 0)
 //      {
 //          if(feof(in)) {break;}
@@ -565,7 +556,7 @@ PyObject* split_by_barcode(PyObject *self, PyObject *args)
 //    Py_DECREF(barcodes);
 //
 //
-//    if(!stats_addvalues(count))
+//    if(!stats_addvalues("split_by_barcode",count))
 //    {
 //        Py_DECREF(count);
 //        return NULL;
@@ -775,7 +766,7 @@ PyObject *process_sample(PyObject* self, PyObject *args)
     }
 
     //save statistics
-    stats_addvalues(PyCount);
+    stats_addvalues("clean", PyCount);
 
 
     return out_files;
