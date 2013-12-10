@@ -1,8 +1,9 @@
 """Main pipeline file"""
 
-import argparse, sys, statistics, gzip
+import argparse, sys, gzip, tempfile, shutil, os,os.path, pysam
 
-import settings, tophat, preprocess, postprocess, tempfile, shutil, os,os.path, pysam
+import settings, tophat, postprocess, statistics
+import preprocess
 
 tophat.verbose = False
 
