@@ -42,7 +42,8 @@ def run(settings_file, reads, outdir, temp_loc=None):
 		print "\n========== Preprocessing =========="
 	remove_input = False
 	if reads.endswith('.gz'):
-		print "Inflating..."
+		if verbose:
+			print "Inflating..."
 		gzfile = gzip.GzipFile(reads, 'r')
 		(out, reads) = tempfile.mkstemp(dir=tempdir, prefix='input.', 
 											suffix='.inflated')

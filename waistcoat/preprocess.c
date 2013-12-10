@@ -298,8 +298,8 @@ void FastQSeq_RemoveA(FastQSeq *self)
     {
         self->seq[i+1] = '\0';
         self->qual[i+1] = '\0';
-        self->seq = realloc(self->seq, i+1);
-        self->qual= realloc(self->qual, i+1);
+        self->seq = realloc(self->seq, i+2);
+        self->qual= realloc(self->qual, i+2);
     }
 }
 
