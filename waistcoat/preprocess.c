@@ -809,6 +809,15 @@ PyObject* run(PyObject *self, PyObject *args)
 // Function table
 static PyMethodDef
 module_functions[] = {
+    {"run", run, METH_VARARGS,
+        "run(in_file, my_settings, outdir, remove_input=True)\n"
+            "  Run the preprocess pipeline\n"
+            "   in_file: input file (fastQ format)\n"
+            "   my_settings: Settings object\n"
+            "   outdir: directory to write output and temp files\n"
+            "   remove_input: whether or not to remove in_file\n"
+            "Returns:\n"
+            "   dictionary mapping sample name to file name"},
     {"process_sample", process_sample, METH_VARARGS,
         "process_sample(files, my_settings, outdir, remove_input=True)\n"
             "  Clean samples and remove duplicates\n"
