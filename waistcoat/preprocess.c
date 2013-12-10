@@ -8,6 +8,7 @@ PyObject *os, *os_path, *settings, *stats, *tempfile;
 const float BOOST_FACTOR = 2.0;
 const float MATCH_THRESHOLD = 0.04;
 const size_t MIN_LENGTH = 15;
+const size_t LENGTH_DIST = 512;
 
 // ****************************************************************
 // -------------------------- Functions from modules --------------
@@ -114,6 +115,57 @@ void get_barcode(const FastQSeq* s, const char* barcode_format, char* barcode)
 void get_umi(const FastQSeq* s, const char* barcode_format, char* barcode)
 {
     _extract(s,barcode_format,'U',barcode);
+}
+
+void print_read_count(PyObject* count, long total, int indent)
+{
+    Py_ssize_t pos = 0;
+    int i;
+    long current;
+    PyObject *isample, *icount;
+    while(PyDict_Next(count, &pos, &isample, &icount))
+    {
+        for(i=0; i < indent; i++)
+            putchar('\t');
+        current = PyInt_AsLong(icount);
+        printf("%s : %3.1f%% : %ld\n", PyString_AsString(isample),
+                current / total * 100.0, current);
+    }
+}
+
+void print_read_dist(long *dist, size_t length, int width, int indent)
+{
+    //find max and start and end points
+    int j;
+    size_t i = 0, start = length, end=0;
+    long max = 0L;
+    for(i=0;i<length; i++)
+    {
+        if( (dist[i] > 0L) && (i < start) )
+        {
+            start = i;
+        }
+        if( (dist[i] > 0L) && (i > end) )
+        {
+            end = i;
+        }
+        if( dist[i] > max )
+        {
+            max = dist[i];
+        }
+    }
+
+    double scale = (double)width / (double)max;
+    for(i=start; i <= end; i++)
+    {
+        for(j=0; j < indent; j++) putchar('\t');
+        printf("%3ld : ", i);
+        for(j=0; j < (int) scale * dist[i]; j++) putchar('*');
+        putchar('\n');
+    }
+
+    for(j=0; j < indent+1; j++) putchar('\t');
+    printf("* = %f\n", 1.0 / scale);
 }
 
 // ****************************************************************
@@ -503,7 +555,7 @@ PyObject* split_by_barcode(PyObject *self, PyObject *args)
 
     if(remove_input)
     {
-        if(!remove(in_file))
+        if(remove(in_file))
         {
             char e[64+strlen(in_file)];
             sprintf(e, "Could not remove input file \"%s\"", in_file);
@@ -521,13 +573,17 @@ PyObject *process_sample(PyObject* self, PyObject *args)
     //parse arguments
     PyObject *in_files = NULL, *my_settings = NULL, *ptemp;
     const char* outdir = NULL;
-    int delete_input = 1;
+    int delete_input = 1, i;
     int ok = PyArg_ParseTuple(args, "O!Os|d", &PyDict_Type, &in_files,
             &my_settings, &outdir, &delete_input);
     if(!ok)
     {
         return NULL;
     }
+    long length_dist[LENGTH_DIST];
+    for(i = 0; i < LENGTH_DIST; i++)
+        length_dist[i] = 0;
+
 
 
     //extract barcode format
@@ -545,7 +601,8 @@ PyObject *process_sample(PyObject* self, PyObject *args)
     //for each sample and file
     Py_ssize_t pos = 0;
     PyObject *isample, *ifile;
-    long count;
+    long count, total = 0;
+    PyObject *PyCount = PyDict_New();
     while(PyDict_Next(in_files, &pos, &isample, &ifile))
     {
         const char* in_name = PyString_AsString(ifile), *out_name;
@@ -572,11 +629,13 @@ PyObject *process_sample(PyObject* self, PyObject *args)
                     sprintf(err, "Error reading from file \"%s\"", in_name);
                     PyErr_SetString(PyExc_IOError, err);
                     Py_DECREF(out_files);
+                    Py_DECREF(PyCount);
                     return NULL;
                 }
                 sprintf(err, "Error parsing file \"%s\"", in_name);
                 PyErr_SetString(PyExc_IOError, err);
                 Py_DECREF(out_files);
+                Py_DECREF(PyCount);
                 return NULL;
             }
             FastQSeq_RemoveA(seq);
@@ -643,12 +702,22 @@ PyObject *process_sample(PyObject* self, PyObject *args)
         count = 0;
         while(conflict != NULL)
         {
+            //find the winning seq
             seq = Conflict_Resolve(conflict, barcode_length + 28);
+            
+            //strip of the barcode and write
             FastQSeq_Offset(seq, barcode_length);
             FastQSeq_Write(seq, out);
-            FastQSeq_Offset(seq, -barcode_length);
-            count += 1;
 
+            //statistics
+            int len = strlen(seq->seq);
+            if(len < LENGTH_DIST)
+                length_dist[len] += 1;
+            count += 1;
+            total += 1;
+
+            //return the barcode and free
+            FastQSeq_Offset(seq, -barcode_length);
             conflict_first = conflict->next;
             Conflict_Free(conflict);
             conflict = conflict_first;
@@ -660,14 +729,34 @@ PyObject *process_sample(PyObject* self, PyObject *args)
         //delete input
         if(delete_input)
         {
-            if(!remove(in_name))
+            if(remove(in_name))
             {
                 char e[32+strlen(in_name)];
                 sprintf(e, "Failed to remove file \"%s\"", in_name);
                 PyErr_SetString(PyExc_IOError, e);
+                Py_DECREF(out_files);
+                Py_DECREF(PyCount);
+                return NULL;
             }
         }
+
+        //store the count
+        ptemp = PyInt_FromLong(count);
+        PyDict_SetItem(PyCount, isample, ptemp);
+        Py_DECREF(ptemp);
     }
+
+    //print summary
+    if(verbose)
+    {
+        printf("Found %ld reads :-\n", total);
+        print_read_count(PyCount, total, 1);
+        printf("Length Distribution :-\n");
+        print_read_dist(length_dist, LENGTH_DIST, 50, 1);
+    }
+
+    //save statistics
+    stats_addvalues(PyCount);
 
 
     return out_files;

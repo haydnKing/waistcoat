@@ -1,6 +1,12 @@
 
 #include "Python.h"
 
+//utilities
+void print_read_count(PyObject* count, long total, int indent);
+void print_read_dist(long *dist, size_t length, int width, int indent);
+
+
+//structs
 typedef struct {
     char *name, *seq, *qual;
 } FastQSeq;
