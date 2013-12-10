@@ -420,163 +420,155 @@ PyObject* split_by_barcode(PyObject *self, PyObject *args)
     }
 
     
-    FILE *in = fopen(in_file, "rb");
-    FastQSeq *seq;
-    while(FastQSeq_Read(in, &seq))
+    //get sample names & barcodes
+    int num_samples = 0;
+    barcodes = PyObject_GetAttrString(my_settings, "barcodes");
+    if (barcodes == NULL){ return NULL; }
+    if (!PyDict_Check(barcodes)){
+        PyErr_SetString(PyExc_TypeError, "settings.barcodes must be a dict");
+        return NULL;
+    }
+    num_samples = PyDict_Size(barcodes);
+
+    if(verbose == Py_True)
     {
-        FastQSeq_Free(seq);
+        printf("Processing \"%d\" samples\n", num_samples);
     }
 
+    //get barcode format
+    PyObject *bfmt = PyObject_GetAttrString(my_settings, "barcode_format");
+    if(bfmt == NULL) return NULL;
+    const char* barcode_format = PyString_AsString(bfmt);
+    Py_DECREF(bfmt);
+
+    //open output files
     files = PyDict_New();
+    const char* barcode_seqs[num_samples];
+    PyObject* sample_names[num_samples];
+    FILE *open_files[num_samples];
+    Py_ssize_t pos = 0;
+    int i = 0;
+    PyObject *isample, *ibarcode;
+    while(PyDict_Next(barcodes, &pos, &isample, &ibarcode))
+    {
+        //get the barcode
+        barcode_seqs[i] = PyString_AsString(ibarcode);
+        if(barcode_seqs[i] == NULL) return NULL;
+
+        //get the sample name
+        sample_names[i] = isample;
+        Py_INCREF(isample);
+        
+        //open the temp file
+        const char* filename;
+        const char* ssample = PyString_AsString(isample);
+        char sample_dot[strlen(ssample) + 2];
+        sprintf(sample_dot, "%s.", ssample);
+        open_files[i] = tempfile_mkstemp3(out_dir, sample_dot, ".barcode", 
+                &filename);
+        if(open_files[i] <= 0)
+        {
+            Py_DECREF(barcodes);
+            Py_DECREF(files);
+            return NULL;
+        }
+
+        //store the filename
+        PyObject* pFilename = PyString_FromString(filename);
+        PyDict_SetItem(files, isample, pFilename);
+        Py_DECREF(pFilename);
+
+        i = i + 1;
+    }
+    Py_DECREF(barcodes);
+
+    
+    //open input file
+    FILE *in = fopen(in_file, "rb");
+    if(in == NULL)
+    {
+        char e[32+strlen(in_file)];
+        sprintf(e, "could not open input file \"%s\"", in_file);
+        PyErr_SetString(PyExc_IOError, e);
+        Py_DECREF(files);
+        return NULL;
+    }
+
+
+    char barcode[strlen(barcode_format)+1];
+
+    //for each seq
+    FastQSeq * seq = NULL;
+    long ccount[num_samples];
+    for(i=0; i<num_samples; i++)
+        ccount[i] = 0L;
+
+    while(FastQSeq_Read(in, &seq))
+    {
+        //extract barcode
+        //write it to the correct file
+
+        get_barcode(seq, barcode_format, barcode);
+
+        for(i=0; i < num_samples; i++)
+        {
+            if(strcmp(barcode, barcode_seqs[i]) == 0)
+            {
+                FastQSeq_Write(seq, open_files[i]);
+                ccount[i] += 1;
+                break;
+            }
+        }
+
+        FastQSeq_Free(seq);
+        seq = NULL;
+    }
+    //close files and fill in count
+    count = PyDict_New();
+    for(i=0; i < num_samples; i++)
+    {
+        fclose(open_files[i]);
+        PyObject *c = PyInt_FromLong(ccount[i]);
+        PyDict_SetItem(count, sample_names[i], c);
+        Py_DECREF(c);
+        Py_DECREF(sample_names[i]);
+    }
+    //check for error
+    if(ferror(in))
+    {
+        char err[64+strlen(in_file)];
+        sprintf(err, "Error reading from file \"%s\"", in_file);
+        PyErr_SetString(PyExc_IOError, err);
+        Py_DECREF(count);
+        Py_DECREF(files);
+        return NULL;
+    }
+    fclose(in);
+
+    //store statistics
+    if(!stats_addvalues("split_by_barcode",count))
+    {
+        Py_DECREF(count);
+        Py_DECREF(files);
+        return NULL;
+    }
+    Py_DECREF(count);
+
+    //delete input file if requested
+    if(remove_input)
+    {
+        if(remove(in_file))
+        {
+            char e[64+strlen(in_file)];
+            sprintf(e, "Could not remove input file \"%s\"", in_file);
+            PyErr_SetString(PyExc_IOError, e);
+            return NULL;
+        }
+    }
+
     return files;
 
 }
-
-//    //get sample names & barcodes
-//    int num_samples = 0;
-//    barcodes = PyObject_GetAttrString(my_settings, "barcodes");
-//    if (barcodes == NULL){ return NULL; }
-//    if (!PyDict_Check(barcodes)){
-//        PyErr_SetString(PyExc_TypeError, "settings.barcodes must be a dict");
-//        return NULL;
-//    }
-//    num_samples = PyDict_Size(barcodes);
-//
-//    if(verbose == Py_True)
-//    {
-//        printf("Processing \"%d\" samples\n", num_samples);
-//    }
-//
-//    //get barcode format
-//    PyObject *bfmt = PyObject_GetAttrString(my_settings, "barcode_format");
-//    if(bfmt == NULL) return NULL;
-//    const char* barcode_format = PyString_AsString(bfmt);
-//    Py_DECREF(bfmt);
-//
-//    //open files
-//  files = PyDict_New();
-//    count = PyDict_New();
-//    const char* barcode_seqs[num_samples];
-//    PyObject* sample_names[num_samples];
-//    FILE *open_files[num_samples];
-//    Py_ssize_t pos = 0;
-//    int i = 0;
-//    PyObject *isample, *ibarcode;
-//    while(PyDict_Next(barcodes, &pos, &isample, &ibarcode))
-//    {
-//        //get the barcode
-//        barcode_seqs[i] = PyString_AsString(ibarcode);
-//        if(barcode_seqs[i] == NULL) return NULL;
-//        //get the sample name
-//        sample_names[i] = isample;
-//        Py_INCREF(isample);
-//        
-//        //open the temp file
-//        const char* filename;
-//        const char* ssample = PyString_AsString(isample);
-//        char sample_dot[strlen(ssample) + 2];
-//        sprintf(sample_dot, "%s.", ssample);
-//        open_files[i] = tempfile_mkstemp3(out_dir, sample_dot, ".barcode", 
-//                &filename);
-//        if(open_files[i] <= 0) return NULL;
-//
-//        //store the filename
-//        PyObject* pFilename = PyString_FromString(filename);
-//        PyDict_SetItem(files, isample, pFilename);
-//        Py_DECREF(pFilename);
-//
-//        i = i + 1;
-//        
-//        //initiate count for statistics
-//        PyObject* tZero = PyInt_FromLong(0);
-//        PyDict_SetItem(count, isample, tZero);
-//        Py_DECREF(tZero);
-//
-//    }
-
-//  
-//  //open input file
-//  FILE *in = fopen(in_file, "rb");
-//  char barcode[strlen(barcode_format)+1];
-
-//  //for each seq
-//  FastQSeq * seq = NULL;
-//  PyObject * c;
-//  int read;
-//  while(!feof(in) && !ferror(in)){
-//      read = FastQSeq_Read(in, &seq);
-//      if(read == 0)
-//      {
-//          if(feof(in)) {break;}
-//          
-//          char err[64+strlen(in_file)];
-//          if(ferror(in))
-//          {
-//              sprintf(err, "Error reading from file \"%s\"", in_file);
-//              PyErr_SetString(PyExc_IOError, err);
-//              return NULL;
-//          }
-//          sprintf(err, "Error parsing file \"%s\"", in_file);
-//          PyErr_SetString(PyExc_IOError, err);
-//          return NULL;
-//      }
-//      
-//      //extract barcode
-//      //write it to the correct file
-
-//        get_barcode(seq, barcode_format, barcode);
-
-//        for(i=0; i < num_samples; i++)
-//        {
-//            if(strcmp(barcode, barcode_seqs[i]) == 0)
-//            {
-//                FastQSeq_Write(seq, open_files[i]);
-//                c = PyDict_GetItem(count, sample_names[i]);
-//                c = PyInt_FromLong(1 + PyInt_AsLong(c));
-//                PyDict_SetItem(count, sample_names[i], c);
-//                Py_DECREF(c);
-//                break;
-//            }
-//        }
-
-//      FastQSeq_Free(seq);
-//      seq = NULL;
-//  }
-//  fclose(in);
-
-//  
-
-//    //close files
-//    for(i=0; i < num_samples; i++)
-//    {
-//        fclose(open_files[i]);
-//        Py_DECREF(sample_names[i]);
-//    }
-//
-//    Py_DECREF(barcodes);
-//
-//
-//    if(!stats_addvalues("split_by_barcode",count))
-//    {
-//        Py_DECREF(count);
-//        return NULL;
-//    }
-//    Py_DECREF(count);
-//
-//    if(remove_input)
-//    {
-//        if(remove(in_file))
-//        {
-//            char e[64+strlen(in_file)];
-//            sprintf(e, "Could not remove input file \"%s\"", in_file);
-//            PyErr_SetString(PyExc_IOError, e);
-//            return NULL;
-//        }
-//    }
-
-//  return files;
-
-//}
 
 PyObject *process_sample(PyObject* self, PyObject *args)
 {
