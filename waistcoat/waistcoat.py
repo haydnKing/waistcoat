@@ -47,11 +47,12 @@ def run(settings_file, reads, outdir, temp_loc=None):
 		(out, reads) = tempfile.mkstemp(dir=tempdir, prefix='input.', 
 											suffix='.inflated')
 		out = os.fdopen(out, 'w')
-		out.write_lines(gzfile)
+		out.writelines(gzfile)
 		gzfile.close()
 		out.close()
 		remove_input = True
 
+	print "run({}, {}, {}, {})".format(reads, my_settings, tempdir, remove_input)
 	files = preprocess.run(reads, my_settings, tempdir, remove_input)
 
 	#discard those which map to discard

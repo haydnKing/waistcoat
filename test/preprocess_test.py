@@ -47,18 +47,6 @@ class PreprocessTest(testcases.TestFastQ):
 		#check all of the files
 		self.assertFastQ(code1, files['barcode_1'])
 		self.assertFastQ(code2, files['barcode_2'])
-		
-	def test_clean_read(self):
-		"""Test clean_read"""
-		s = settings.Settings({
-			'barcodes': {"barcode_1": 'TCCA', "barcode_2": 'TCTT',},
-			'barcode_format': "BBBNNNB",
-			'target': 'null',})
-		seq = SeqRecord(Seq("actcgatCTCGATCTGAGTGCGAGGTCGGATTTATGCGTGTTAGCAAAAAAA"+
-			"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"))
-
-		out = preprocess.clean_read(seq,s)
-		self.assertEqual(str(out.seq), "CTCGATCTGAGTGCGAGGTCGGATTTATGCGTGTTAGC")
 
 	def test_process_sample(self):
 		"""Test process_sample"""
