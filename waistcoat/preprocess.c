@@ -3,7 +3,7 @@
 #include "preprocess.h"
 
 //modules
-PyObject *os, *os_path, *settings, *stats, *tempfile;
+PyObject *os, *os_path, *settings, *stats, *tempfile, *the_module;
 
 const float BOOST_FACTOR = 2.0;
 const float MATCH_THRESHOLD = 0.04;
@@ -65,17 +65,25 @@ FILE *tempfile_mkstemp0(const char** filename)
 int stats_addvalues(const char* name, PyObject* values)
 {
     PyObject* addValues = PyObject_GetAttrString(stats, "addValues");
-    if(addValues == NULL) return -1;
+    if(addValues == NULL) return 0;
 
     PyObject* ret = PyObject_CallFunction(addValues, "sO", name, values);
-    if(ret == NULL) return -1;
+    if(ret == NULL) return 0;
 
-    return 0;
+    return 1;
 }
 
 // ****************************************************************
 // -------------------------- Utility funcs --------------------------
 // ****************************************************************
+
+int is_verbose(void)
+{
+    PyObject *v = PyObject_GetAttrString(the_module, "verbose");
+    int r = (int) PyInt_AsLong(v);
+    Py_DECREF(v);
+    return r;
+}
 
 size_t write_lines(const char* out, size_t width, FILE *ofile)
 {
@@ -396,12 +404,10 @@ FastQSeq *Conflict_Resolve(Conflict *self, int target_length)
 // -------------------------- Module Functions --------------------
 // ****************************************************************
 
-// whether or not to output to console
-PyObject* verbose;
 
 PyObject* split_by_barcode(PyObject *self, PyObject *args)
 {
-    if(verbose == Py_True)
+    if(is_verbose())
     {
         printf("Splitting Sequence by Barcode\n");
     }
@@ -414,7 +420,7 @@ PyObject* split_by_barcode(PyObject *self, PyObject *args)
         return NULL;
     }
 
-    if(verbose == Py_True)
+    if(is_verbose())
     {
         printf("Reading from \"%s\"\n", in_file);
     }
@@ -430,7 +436,7 @@ PyObject* split_by_barcode(PyObject *self, PyObject *args)
     }
     num_samples = PyDict_Size(barcodes);
 
-    if(verbose == Py_True)
+    if(is_verbose())
     {
         printf("Processing \"%d\" samples\n", num_samples);
     }
@@ -440,6 +446,7 @@ PyObject* split_by_barcode(PyObject *self, PyObject *args)
     if(bfmt == NULL) return NULL;
     const char* barcode_format = PyString_AsString(bfmt);
     Py_DECREF(bfmt);
+
 
     //open output files
     files = PyDict_New();
@@ -482,7 +489,6 @@ PyObject* split_by_barcode(PyObject *self, PyObject *args)
     }
     Py_DECREF(barcodes);
 
-    
     //open input file
     FILE *in = fopen(in_file, "rb");
     if(in == NULL)
@@ -567,7 +573,6 @@ PyObject* split_by_barcode(PyObject *self, PyObject *args)
     }
 
     return files;
-
 }
 
 PyObject *process_sample(PyObject* self, PyObject *args)
@@ -575,9 +580,9 @@ PyObject *process_sample(PyObject* self, PyObject *args)
     //parse arguments
     PyObject *in_files = NULL, *my_settings = NULL, *ptemp;
     const char* out_dir = NULL;
-    int delete_input = 1, i;
+    int remove_input = 1, i;
     int ok = PyArg_ParseTuple(args, "O!Os|i", &PyDict_Type, &in_files,
-            &my_settings, &out_dir, &delete_input);
+            &my_settings, &out_dir, &remove_input);
     if(!ok)
     {
         return NULL;
@@ -729,7 +734,7 @@ PyObject *process_sample(PyObject* self, PyObject *args)
         fclose(out);
 
         //delete input
-        if(delete_input)
+        if(remove_input)
         {
             if(remove(in_name))
             {
@@ -749,7 +754,7 @@ PyObject *process_sample(PyObject* self, PyObject *args)
     }
 
     //print summary
-    if(verbose)
+    if(is_verbose())
     {
         printf("Found %ld reads :-\n", total);
         print_read_count(PyCount, total, 1);
@@ -758,7 +763,11 @@ PyObject *process_sample(PyObject* self, PyObject *args)
     }
 
     //save statistics
-    stats_addvalues("clean", PyCount);
+    if(!stats_addvalues("clean", PyCount))
+    {
+        Py_DECREF(out_files);
+        return NULL;
+    }
 
 
     return out_files;
@@ -788,8 +797,8 @@ PyObject* run(PyObject *self, PyObject *args)
     Py_DECREF(the_args);
     if(files1 == NULL) return NULL;
 
-    //call process_sample
-    the_args = Py_BuildValue("OOsi", files1, my_settings, out_dir, remove_input);
+    //call process_sample -- always remove_input for internal tempfiles
+    the_args = Py_BuildValue("OOsi", files1, my_settings, out_dir, 1);
     Py_DECREF(files1);
     files2 = process_sample(self, the_args);
     Py_DECREF(the_args);
@@ -827,7 +836,7 @@ module_functions[] = {
 void
 initpreprocess(void)
 {
-    PyObject *the_module = Py_InitModule3("preprocess", module_functions,
+    the_module = Py_InitModule3("preprocess", module_functions,
             "Preprocess sequencing reads");
 
     //import other modules
@@ -843,8 +852,9 @@ initpreprocess(void)
     if(stats == NULL) return;
 
     //expose verbose
-    verbose = PyBool_FromLong(1L);
+    PyObject *verbose = PyBool_FromLong(1L);
     if(PyModule_AddObject(the_module, "verbose", verbose) < 0) return;
+    Py_DECREF(verbose);
 
 }
 

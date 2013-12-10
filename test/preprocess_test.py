@@ -9,7 +9,7 @@ from waistcoat import preprocess, settings, statistics
 from Bio.SeqRecord import SeqRecord
 from Bio.Seq import Seq
 
-#preprocess.verbose = False
+preprocess.verbose = False
 
 DATA_DIR = pjoin(psplit(__file__)[0], "data/preprocess/")
 
@@ -50,6 +50,8 @@ class PreprocessTest(testcases.TestFastQ):
 
 	def test_process_sample(self):
 		"""Test process_sample"""
+		print "preprocess.verbose = {}".format(preprocess.verbose)
+
 		input_file = pjoin(self.tempdir, 'process_test.fq')
 		test_input = pjoin(DATA_DIR, 'process_test.fq')
 		test_output = pjoin(DATA_DIR, 'process_test_out.fq')
