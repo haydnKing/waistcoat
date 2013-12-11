@@ -122,7 +122,7 @@ void get_barcode(const FastQSeq* s, const char* barcode_format, char* barcode)
 
 void get_umi(const FastQSeq* s, const char* barcode_format, char* barcode)
 {
-    _extract(s,barcode_format,'U',barcode);
+    _extract(s,barcode_format,'N',barcode);
 }
 
 int get_umi_length(const char* barcode_format)
@@ -231,6 +231,7 @@ FastQSeq *FastQSeq_New(void)
 
 void FastQSeq_Free(FastQSeq *s)
 {
+    if(s == NULL) return;
     free(s->name);
     free(s->seq);
     free(s->qual);
@@ -343,6 +344,22 @@ void FastQSeq_RemoveA(FastQSeq *self)
     }
 }
 
+void FastQSeq_RemoveBarcode(FastQSeq *self, int barcode_length)
+{
+    size_t len = strlen(self->seq);
+    if(barcode_length < 0) return;
+    if(barcode_length > len) return;
+
+    int i;
+    for(i = 0; i < len - barcode_length; i++)
+    {
+        self->seq[i] = self->seq[i+barcode_length];
+        self->qual[i] = self->qual[i+barcode_length];
+    }
+    self->seq[i] = '\0';
+    self->qual[i]= '\0';
+}
+
 float FastQSeq_Score(FastQSeq *self, int target_length)
 {
     float score = 0;
@@ -378,9 +395,9 @@ ConflictEl *ConflictEl_New(FastQSeq *seq)
 
 void ConflictEl_Free(ConflictEl *el)
 {
+    if(el == NULL) return;
     FastQSeq_Free(el->seq);
-    if(el->next != NULL)
-        ConflictEl_Free(el->next);
+    ConflictEl_Free(el->next);
     free(el);
 }
 
@@ -410,8 +427,9 @@ void Conflict_AppendNew(Conflict* self, FastQSeq *seq)
 
 void Conflict_Free(Conflict* self)
 {
+    if(self == NULL) return;
     ConflictEl_Free(self->first_element);
-    self->first_element = NULL;
+    Conflict_Free(self->next);
     free(self);
 }
 
@@ -652,6 +670,8 @@ PyObject *process_sample(PyObject* self, PyObject *args)
     if(barcode_format == NULL) return NULL;
     Py_DECREF(ptemp);
     size_t barcode_length = strlen(barcode_format);
+    long umi_length = get_umi_length(barcode_format);
+    long num_umi = pow(4, umi_length);
 
 
     //prepare output dict
@@ -662,13 +682,16 @@ PyObject *process_sample(PyObject* self, PyObject *args)
     PyObject *isample, *ifile;
     long count, total = 0;
     PyObject *PyCount = PyDict_New();
+    Conflict **UMI = malloc(num_umi * sizeof(Conflict*));
+    for(i=0; i < num_umi; i++)
+        UMI[i] = NULL;
     while(PyDict_Next(in_files, &pos, &isample, &ifile))
     {
         const char* in_name = PyString_AsString(ifile), *out_name;
 
         if(is_verbose())
         {
-            printf("\tProcessing \"%s\"\n", in_name);
+            printf("\tReading from \"%s\"\n", in_name);
         }
 
         //open input file
@@ -685,43 +708,32 @@ PyObject *process_sample(PyObject* self, PyObject *args)
 
         //load in all seqs
         FastQSeq *seq = NULL;
-        Conflict *conflict_first = NULL, *conflict_last, *conflict;
+        Conflict *conflict;
         float min, current;
-        ConflictEl *target;
-        while(!feof(in))
+        Conflict *target;
+        char umi[umi_length];
+        long lumi = 0;
+        while(FastQSeq_Read(in, &seq))
         {
-            int read = FastQSeq_Read(in, &seq);
-            if(read == 0)
-            {
-                if(feof(in)) {break;}
-                
-                char err[64+strlen(in_name)];
-                if(ferror(in))
-                {
-                    sprintf(err, "Error reading from file \"%s\"", in_name);
-                    PyErr_SetString(PyExc_IOError, err);
-                    Py_DECREF(out_files);
-                    Py_DECREF(PyCount);
-                    return NULL;
-                }
-                sprintf(err, "Error parsing file \"%s\"", in_name);
-                PyErr_SetString(PyExc_IOError, err);
-                Py_DECREF(out_files);
-                Py_DECREF(PyCount);
-                return NULL;
-            }
             FastQSeq_RemoveA(seq);
             if((strlen(seq->seq)-barcode_length) < MIN_LENGTH)
             {
                 continue;
             }
+            get_umi(seq, barcode_format, umi);
+            //Trim the barcode
+            FastQSeq_RemoveBarcode(seq, barcode_length);
 
-            conflict = conflict_first;
+
+            //check conflicts with the same UMI
+            lumi = get_umi_long(umi);
+            conflict = UMI[lumi];
+
+
             //first case
-            if(conflict_first == NULL)
+            if(conflict == NULL)
             {
-                conflict_first = Conflict_New(seq);
-                conflict_last = conflict_first;
+                UMI[lumi] = Conflict_New(seq);
                 continue;
             }
             //find the closest matching conflict
@@ -738,7 +750,7 @@ PyObject *process_sample(PyObject* self, PyObject *args)
                 if(current < min)
                 {
                     min = current;
-                    target = conflict->first_element;
+                    target = conflict;
                 }
                 conflict = conflict->next;
             }
@@ -746,13 +758,23 @@ PyObject *process_sample(PyObject* self, PyObject *args)
             //if there is a matching conflict
             if(target != NULL)
             {
-                ConflictEl_Append(target, ConflictEl_New(seq));
+                ConflictEl_Append(target->first_element, ConflictEl_New(seq));
             }
             else //if no conflict is close enough
             {
-                Conflict_AppendNew(conflict_last, seq);
-                conflict_last = conflict_last->next;
+                conflict = UMI[lumi];
+                Conflict_AppendNew(conflict, seq);
             }
+        }
+        //check for error
+        if(ferror(in))
+        {
+            char err[64+strlen(in_name)];
+            sprintf(err, "Error reading from file \"%s\"", in_name);
+            PyErr_SetString(PyExc_IOError, err);
+            Py_DECREF(PyCount);
+            Py_DECREF(out_files);
+            return NULL;
         }
 
         //close input
@@ -769,30 +791,36 @@ PyObject *process_sample(PyObject* self, PyObject *args)
         PyDict_SetItem(out_files, isample, ptemp);
         Py_DECREF(ptemp);
 
-        //resolve conflicts and save the winner
-        conflict = conflict_first;
-        count = 0;
-        while(conflict != NULL)
+        if(is_verbose())
         {
-            //find the winning seq
-            seq = Conflict_Resolve(conflict, barcode_length + 28);
-            
-            //strip of the barcode and write
-            FastQSeq_Offset(seq, barcode_length);
-            FastQSeq_Write(seq, out);
+            printf("\t\tWriting to \"%s\"\n", out_name);
+        }
 
-            //statistics
-            int len = strlen(seq->seq);
-            if(len < LENGTH_DIST)
-                length_dist[len] += 1;
-            count += 1;
-            total += 1;
+        //resolve conflicts and save the winner
+        count = 0;
+        for(i=0; i < num_umi; i++)
+        {
+            conflict = UMI[i];
+            while(conflict != NULL)
+            {
+                //find the winning seq
+                seq = Conflict_Resolve(conflict, 28);
+                
+                //write
+                FastQSeq_Write(seq, out);
 
-            //return the barcode and free
-            FastQSeq_Offset(seq, -barcode_length);
-            conflict_first = conflict->next;
-            Conflict_Free(conflict);
-            conflict = conflict_first;
+                //statistics
+                int len = strlen(seq->seq);
+                if(len < LENGTH_DIST)
+                    length_dist[len] += 1;
+                count += 1;
+                total += 1;
+
+                conflict = conflict->next;
+            }
+            //free all conflicts in this UMI
+            Conflict_Free(UMI[i]);
+            UMI[i] = NULL;
         }
 
         //close output
@@ -822,7 +850,8 @@ PyObject *process_sample(PyObject* self, PyObject *args)
             printf("\t\tWritten %ld reads\n", count);
         }
     }
-
+    free(UMI);
+    
     //print summary
     if(is_verbose())
     {

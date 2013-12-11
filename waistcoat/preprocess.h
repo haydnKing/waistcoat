@@ -17,6 +17,7 @@ size_t FastQSeq_Read(FILE * f, FastQSeq **s);
 void FastQSeq_Free(FastQSeq *s);
 float FastQSeq_Distance(FastQSeq *lhs, FastQSeq *rhs);
 void FastQSeq_RemoveA(FastQSeq *self);
+void FastQSeq_RemoveBarcode(FastQSeq *self, int barcode_length);
 float FastQSeq_Score(FastQSeq *self, int target_length);
 void FastQSeq_Offset(FastQSeq *self, int offset);
 
@@ -45,7 +46,7 @@ struct Conflict {
 
 //create a new conflict for seq and append it to the list
 void Conflict_AppendNew(Conflict* self, FastQSeq *seq);
-//Free the conflict, and its elements
+//Free the conflict, its elements, and any subsequent conflicts
 void Conflict_Free(Conflict* self);
 //Create a new conflict
 Conflict *Conflict_New(FastQSeq* seq);
