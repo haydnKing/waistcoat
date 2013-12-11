@@ -846,10 +846,20 @@ initpreprocess(void)
     if(os_path == NULL) return;
     tempfile = PyImport_ImportModule("tempfile");
     if(tempfile == NULL) return;
-    settings = PyImport_ImportModule("waistcoat.settings");
-    if(settings == NULL) return;
-    stats = PyImport_ImportModule("waistcoat.statistics");
-    if(stats == NULL) return;
+    settings = PyImport_ImportModule("settings");
+    if(settings == NULL) 
+    {
+        PyErr_Clear();
+        settings = PyImport_ImportModule("waistcoat.settings");
+        if(settings == NULL) return;
+    }
+    stats = PyImport_ImportModule("statistics");
+    if(stats == NULL)
+    {
+        PyErr_Clear();
+        stats = PyImport_ImportModule("waistcoat.statistics");
+        if(stats == NULL) return;
+    }
 
     //expose verbose
     PyObject *verbose = PyBool_FromLong(1L);
