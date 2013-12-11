@@ -125,6 +125,46 @@ void get_umi(const FastQSeq* s, const char* barcode_format, char* barcode)
     _extract(s,barcode_format,'U',barcode);
 }
 
+int get_umi_length(const char* barcode_format)
+{
+    int l = 0, i;
+    for(i=0; i < strlen(barcode_format); i++)
+    {
+        if(barcode_format[i] == 'N')
+            l++;
+    }
+    return l;
+}
+
+long get_umi_long(const char* umi)
+{
+    int i;
+    long r = 0;
+    char c;
+    for(i = 0; i < strlen(umi); i++)
+    {
+        c = toupper(umi[i]);
+        r = r * 4;
+        switch(c)
+        {
+            case 'A':
+                r += 0;
+                break;
+            case 'T':
+                r += 1;
+                break;
+            case 'C':
+                r += 2;
+                break;
+            case 'G':
+                r += 3;
+                break;
+        }
+    }
+    return r;
+}
+
+
 void print_read_count(PyObject* count, long total, int indent)
 {
     Py_ssize_t pos = 0;
@@ -137,7 +177,7 @@ void print_read_count(PyObject* count, long total, int indent)
             putchar('\t');
         current = PyInt_AsLong(icount);
         printf("%s : %3.1f%% : %ld\n", PyString_AsString(isample),
-                current / total * 100.0, current);
+                (double)current / (double)total * 100.0, current);
     }
 }
 

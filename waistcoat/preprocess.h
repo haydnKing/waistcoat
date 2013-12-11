@@ -53,3 +53,7 @@ Conflict *Conflict_New(FastQSeq* seq);
 FastQSeq *Conflict_Resolve(Conflict *self, int target_length);
 
 
+void get_barcode(const FastQSeq* s, const char* barcode_format, char* barcode);
+void get_umi(const FastQSeq* s, const char* barcode_format, char* barcode);
+int get_umi_length(const char* barcode_format);
+long get_umi_long(const char* umi);
