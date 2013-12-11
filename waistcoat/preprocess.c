@@ -505,6 +505,7 @@ PyObject* split_by_barcode(PyObject *self, PyObject *args)
 
     //for each seq
     FastQSeq * seq = NULL;
+    long total = 0;
     long ccount[num_samples];
     for(i=0; i<num_samples; i++)
         ccount[i] = 0L;
@@ -522,6 +523,7 @@ PyObject* split_by_barcode(PyObject *self, PyObject *args)
             {
                 FastQSeq_Write(seq, open_files[i]);
                 ccount[i] += 1;
+                total += 1;
                 break;
             }
         }
@@ -551,6 +553,12 @@ PyObject* split_by_barcode(PyObject *self, PyObject *args)
     }
     fclose(in);
 
+    if(is_verbose())
+    {
+        printf("Found %ld reads:-\n", total);
+        print_read_count(count, total, 1);
+    }
+
     //store statistics
     if(!stats_addvalues("split_by_barcode",count))
     {
@@ -577,6 +585,10 @@ PyObject* split_by_barcode(PyObject *self, PyObject *args)
 
 PyObject *process_sample(PyObject* self, PyObject *args)
 {
+    if(is_verbose())
+    {
+        printf("Processing Samples\n");
+    }
     //parse arguments
     PyObject *in_files = NULL, *my_settings = NULL, *ptemp;
     const char* out_dir = NULL;
@@ -614,9 +626,22 @@ PyObject *process_sample(PyObject* self, PyObject *args)
     {
         const char* in_name = PyString_AsString(ifile), *out_name;
 
+        if(is_verbose())
+        {
+            printf("\tProcessing \"%s\"\n", in_name);
+        }
 
         //open input file
         FILE *in = fopen(in_name, "rb");
+        if(in == NULL)
+        {
+            char e[32+strlen(in_name)];
+            sprintf(e, "Could not open file \"%s\"", in_name);
+            PyErr_SetString(PyExc_IOError, e);
+            Py_DECREF(PyCount);
+            Py_DECREF(out_files);
+            return NULL;
+        }
 
         //load in all seqs
         FastQSeq *seq = NULL;
@@ -751,6 +776,11 @@ PyObject *process_sample(PyObject* self, PyObject *args)
         ptemp = PyInt_FromLong(count);
         PyDict_SetItem(PyCount, isample, ptemp);
         Py_DECREF(ptemp);
+
+        if(is_verbose())
+        {
+            printf("\t\tWritten %ld reads\n", count);
+        }
     }
 
     //print summary
