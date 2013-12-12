@@ -516,13 +516,19 @@ PyObject* split_by_barcode(PyObject *self, PyObject *args)
         FastQSeq_Free(seq);
         seq = NULL;
     }
-    //close files and fill in count
+    //close files and fill in count and filename
     count = PyDict_New();
     for(i=0; i < num_samples; i++)
     {
         fclose(open_files[i]);
         PyObject *c = PyInt_FromLong(ccount[i]);
         PyDict_SetItem(count, sample_names[i], c);
+        
+        PyObject *f = PyDict_GetItem(files, sample_names[i]);
+        PyObject *t = PyTuple_Pack(2, f, c);
+        PyDict_SetItem(files, sample_names[i], t);
+
+        Py_DECREF(t);
         Py_DECREF(c);
         Py_DECREF(sample_names[i]);
     }
@@ -584,6 +590,25 @@ PyObject *process_sample(PyObject* self, PyObject *args)
     {
         return NULL;
     }
+    //check dict
+    Py_ssize_t pos = 0;
+    PyObject *isample, *ifile;
+    while(PyDict_Next(in_files, &pos, &isample, &ifile))
+    {
+        if(!PyString_Check(isample))
+        {
+            PyErr_SetString(PyExc_ValueError, "Sample name must be a string");
+            return NULL;
+        }
+        const char *fname = NULL;
+        long length = 1;
+        int ok = PyArg_ParseTuple(ifile, "sl", &fname, &length);
+        if(!ok)
+        {
+            return NULL;
+        }
+    }
+
     long length_dist[LENGTH_DIST];
     for(i = 0; i < LENGTH_DIST; i++)
         length_dist[i] = 0;
@@ -605,8 +630,7 @@ PyObject *process_sample(PyObject* self, PyObject *args)
     PyObject* out_files = PyDict_New();
 
     //for each sample and file
-    Py_ssize_t pos = 0;
-    PyObject *isample, *ifile;
+    pos = 0;
     long count, total = 0;
     PyObject *PyCount = PyDict_New();
     SeqItem **UMI = malloc(num_umi * sizeof(SeqItem*));
@@ -614,7 +638,9 @@ PyObject *process_sample(PyObject* self, PyObject *args)
         UMI[i] = NULL;
     while(PyDict_Next(in_files, &pos, &isample, &ifile))
     {
-        const char* in_name = PyString_AsString(ifile), *out_name;
+        const char *in_name = NULL, *out_name = NULL;
+        long length = 1;
+        int ok = PyArg_ParseTuple(ifile, "sl", &in_name, &length);
 
         if(is_verbose())
         {
@@ -638,7 +664,6 @@ PyObject *process_sample(PyObject* self, PyObject *args)
         SeqItem *item;
         char umi[umi_length];
         long lumi = 0;
-        int ok;
         while(FastQSeq_Read(in, &seq))
         {
             FastQSeq_RemoveA(seq);

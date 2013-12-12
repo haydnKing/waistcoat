@@ -38,21 +38,21 @@ class PreprocessTest(testcases.TestFastQ):
 
 		values = files.values()
 		filenames = [v[0] for v in values]
-		lengths = [v[1] for v in values]
 
 		#check that the correct files were produced
 		self.assertEqual([os.path.join(self.tempdir, f) for f in 
 				sorted(os.listdir(self.tempdir))],
 			sorted(filenames))
 
-		self.assertEqual(sorted(lengths), [2, 3])
+		self.assertEqual(files['barcode_1'][1], 2)
+		self.assertEqual(files['barcode_2'][1], 3)
 
 		#check that the correct samples were produced
 		self.assertEqual(sorted(files.keys()), sorted(s.barcodes.keys()))
 
 		#check all of the files
-		self.assertFastQ(code1, files['barcode_1'])
-		self.assertFastQ(code2, files['barcode_2'])
+		self.assertFastQ(code1, files['barcode_1'][0])
+		self.assertFastQ(code2, files['barcode_2'][0])
 
 	def test_process_sample(self):
 		"""Test process_sample"""
