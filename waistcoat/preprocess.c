@@ -664,8 +664,19 @@ PyObject *process_sample(PyObject* self, PyObject *args)
         SeqItem *item;
         char umi[umi_length];
         long lumi = 0;
+        count = 0;
         while(FastQSeq_Read(in, &seq))
         {
+            count += 1;
+            if(count % 1000 == 0)
+            {
+                if(is_verbose())
+                {
+                    printf("Reading %ld/%ld (%3.1f%%)         \r", 
+                        count, length,
+                        100.0 * (float)((double)count / (double)length));
+                }
+            }
             FastQSeq_RemoveA(seq);
             if((strlen(seq->seq)-barcode_length) < MIN_LENGTH)
             {
@@ -737,6 +748,7 @@ PyObject *process_sample(PyObject* self, PyObject *args)
 
         if(is_verbose())
         {
+            printf("\r                                                       \r");
             printf("\t\tWriting to \"%s\"\n", out_name);
         }
 
