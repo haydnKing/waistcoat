@@ -36,10 +36,16 @@ class PreprocessTest(testcases.TestFastQ):
 		
 		files = preprocess.split_by_barcode(reads, s, self.tempdir)
 
+		values = files.values()
+		filenames = [v[0] for v in values]
+		lengths = [v[1] for v in values]
+
 		#check that the correct files were produced
 		self.assertEqual([os.path.join(self.tempdir, f) for f in 
 				sorted(os.listdir(self.tempdir))],
-			sorted(files.values()))
+			sorted(filenames))
+
+		self.assertEqual(sorted(lengths), [2, 3])
 
 		#check that the correct samples were produced
 		self.assertEqual(sorted(files.keys()), sorted(s.barcodes.keys()))
@@ -62,7 +68,7 @@ class PreprocessTest(testcases.TestFastQ):
 			'barcode_format': "BBBNNNB",
 			'target': 'null',})
 		files = preprocess.process_sample(
-				{'sample_1': input_file,}, s, self.tempdir)
+				{'sample_1': (input_file, 8,),}, s, self.tempdir)
 
 		#check that the sample persisted
 		self.assertEqual(files.keys(), ['sample_1',])
