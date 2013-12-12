@@ -310,23 +310,6 @@ size_t FastQSeq_Write(FastQSeq *s, FILE *f)
     return written;
 }
 
-float FastQSeq_Distance(FastQSeq *lhs, FastQSeq *rhs)
-{
-    int llen = strlen(lhs->seq), rlen = strlen(rhs->seq), i;
-    int len = (llen > rlen) ? rlen : llen;
-    if(len == 0){
-        return -1;
-    }
-    float total = 0.0;
-    for(i = 0; i < len; i++)
-    {
-        if(toupper(lhs->seq[i]) != toupper(rhs->seq[i]))
-            total += 1.0;
-    }
-
-    return total / (float)len;
-}
-
 void FastQSeq_RemoveA(FastQSeq *self)
 {
     int len = strlen(self->seq), i=0;
@@ -360,103 +343,47 @@ void FastQSeq_RemoveBarcode(FastQSeq *self, int barcode_length)
     self->qual[i]= '\0';
 }
 
-float FastQSeq_Score(FastQSeq *self, int target_length)
+
+// -------------------------- SeqItem
+
+
+SeqItem *SeqItem_New(FastQSeq *seq)
 {
-    float score = 0;
-    int len = strlen(self->seq), i;
-    if(len == 0) return -1.0;
-    for(i = 0; i < len; i++)
-    {
-        score += (float) self->qual[i];
-    }
-    score = score / (float) len;
-
-    //give a boost to ones which are 28 long
-    if(len == target_length){
-        score = score * BOOST_FACTOR;
-    }
-
-    return score;
+    SeqItem *r = malloc(sizeof(SeqItem));
+    r->the_seq = seq;
+    r->next = NULL;
+    return r;
 }
 
-void FastQSeq_Offset(FastQSeq *self, int offset)
-{
-    self->seq = self->seq + offset;
-    self->qual = self->qual + offset;
-}
-
-ConflictEl *ConflictEl_New(FastQSeq *seq)
-{
-    ConflictEl *ret = malloc(sizeof(ConflictEl));
-    ret->seq = seq;
-    ret->next = NULL;
-    return ret;
-}
-
-void ConflictEl_Free(ConflictEl *el)
-{
-    if(el == NULL) return;
-    FastQSeq_Free(el->seq);
-    ConflictEl_Free(el->next);
-    free(el);
-}
-
-void ConflictEl_Append(ConflictEl* self, ConflictEl* rhs)
-{
-    rhs->next = self->next;
-    self->next = rhs;
-}
-
-void ConflictEl_Remove(ConflictEl* self)
-{
-    ConflictEl *n = self->next;
-    FastQSeq_Free(self->seq);
-    self->seq = n->seq;
-    n->seq = NULL;
-    self->next = n->next;
-    n->next = NULL;
-    free(n);
-}
-
-void Conflict_AppendNew(Conflict* self, FastQSeq *seq)
-{
-    Conflict *new = Conflict_New(seq);
-    new->next = self->next;
-    self->next = new;
-}
-
-void Conflict_Free(Conflict* self)
+void SeqItem_Free(SeqItem *self)
 {
     if(self == NULL) return;
-    ConflictEl_Free(self->first_element);
-    Conflict_Free(self->next);
+    FastQSeq_Free(self->the_seq);
+    SeqItem_Free(self->next);
     free(self);
+    return;
 }
 
-Conflict *Conflict_New(FastQSeq* seq)
+void SeqItem_Append(SeqItem* self, SeqItem* rhs)
 {
-    Conflict *ret = malloc(sizeof(Conflict));
-    ret->first_element = ConflictEl_New(seq);
-    ret->next = NULL;
-    return ret;
+    rhs->next = self->next;
+    self->next = rhs->next;
 }
 
-FastQSeq *Conflict_Resolve(Conflict *self, int target_length)
+int SeqItem_Compare(SeqItem* self, FastQSeq* rhs)
 {
-    float max_score = 0.0, score;
-    ConflictEl *el = self->first_element, *winner = NULL;
-    while(el != NULL)
-    {
-        score = FastQSeq_Score(el->seq, target_length);
-        if(score > max_score) 
-        {
-            max_score = score;
-            winner = el;
-        }
-        el = el->next;
-    }
-    return winner->seq;
+    return strcmp(self->the_seq->seq, rhs->seq);
 }
+
+int SeqItem_Next(SeqItem **next)
+{
+    if((*next) == NULL) return 0;
+    if((*next)->next == NULL)
+        return 0;
+    (*next) = (*next)->next;
+    return 1;
+}
+
 
 // ****************************************************************
 // -------------------------- Module Functions --------------------
@@ -682,7 +609,7 @@ PyObject *process_sample(PyObject* self, PyObject *args)
     PyObject *isample, *ifile;
     long count, total = 0;
     PyObject *PyCount = PyDict_New();
-    Conflict **UMI = malloc(num_umi * sizeof(Conflict*));
+    SeqItem **UMI = malloc(num_umi * sizeof(SeqItem*));
     for(i=0; i < num_umi; i++)
         UMI[i] = NULL;
     while(PyDict_Next(in_files, &pos, &isample, &ifile))
@@ -708,11 +635,10 @@ PyObject *process_sample(PyObject* self, PyObject *args)
 
         //load in all seqs
         FastQSeq *seq = NULL;
-        Conflict *conflict;
-        float min, current;
-        Conflict *target;
+        SeqItem *item;
         char umi[umi_length];
         long lumi = 0;
+        int ok;
         while(FastQSeq_Read(in, &seq))
         {
             FastQSeq_RemoveA(seq);
@@ -725,45 +651,38 @@ PyObject *process_sample(PyObject* self, PyObject *args)
             FastQSeq_RemoveBarcode(seq, barcode_length);
 
 
-            //check conflicts with the same UMI
+            //check sequences with the same UMI
             lumi = get_umi_long(umi);
-            conflict = UMI[lumi];
-
+            item = UMI[lumi];
 
             //first case
-            if(conflict == NULL)
+            if(item == NULL)
             {
-                UMI[lumi] = Conflict_New(seq);
+                UMI[lumi] = SeqItem_New(seq);
                 continue;
             }
-            //find the closest matching conflict
-            target = NULL;
-            min = 10.0 * MATCH_THRESHOLD;
-            while(conflict != NULL)
+            //for each seq with the same UMI
+            ok = 1;
+            while(ok)
             {
-                current = FastQSeq_Distance(seq, conflict->first_element->seq);
-                if(current < 0.0)
+                //if we've already found an identical seq
+                if(SeqItem_Compare(item, seq))
                 {
-                    conflict = conflict->next;
-                    continue;
+                    //ignore this one
+                    FastQSeq_Free(seq);
+                    seq = NULL;
+                    break;
                 }
-                if(current < min)
-                {
-                    min = current;
-                    target = conflict;
-                }
-                conflict = conflict->next;
+                ok = SeqItem_Next(&item);
             }
-
-            //if there is a matching conflict
-            if(target != NULL)
+            if(seq == NULL)
             {
-                ConflictEl_Append(target->first_element, ConflictEl_New(seq));
+                continue;
             }
-            else //if no conflict is close enough
+            else //if there was no match
             {
-                conflict = UMI[lumi];
-                Conflict_AppendNew(conflict, seq);
+                //item is the last in the chain
+                SeqItem_Append(item, SeqItem_New(seq));
             }
         }
         //check for error
@@ -796,30 +715,29 @@ PyObject *process_sample(PyObject* self, PyObject *args)
             printf("\t\tWriting to \"%s\"\n", out_name);
         }
 
-        //resolve conflicts and save the winner
+        //save each item
         count = 0;
+        ok = 0;
         for(i=0; i < num_umi; i++)
         {
-            conflict = UMI[i];
-            while(conflict != NULL)
+            item = UMI[i];
+            if(item != NULL) ok = 1;
+            while(ok)
             {
-                //find the winning seq
-                seq = Conflict_Resolve(conflict, 28);
-                
                 //write
-                FastQSeq_Write(seq, out);
+                FastQSeq_Write(item->the_seq, out);
 
                 //statistics
-                int len = strlen(seq->seq);
+                int len = strlen(item->the_seq->seq);
                 if(len < LENGTH_DIST)
                     length_dist[len] += 1;
                 count += 1;
                 total += 1;
 
-                conflict = conflict->next;
+                ok = SeqItem_Next(&item);
             }
-            //free all conflicts in this UMI
-            Conflict_Free(UMI[i]);
+            //free all items in this UMI
+            SeqItem_Free(UMI[i]);
             UMI[i] = NULL;
         }
 
