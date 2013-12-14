@@ -2,6 +2,11 @@
 
 #include "preprocess.h"
 
+#define VAL_A 0
+#define VAL_T 1
+#define VAL_C 2
+#define VAL_G 3
+
 //modules
 PyObject *os, *os_path, *settings, *stats, *tempfile, *the_module;
 
@@ -148,16 +153,16 @@ long get_umi_long(const char* umi)
         switch(c)
         {
             case 'A':
-                r += 0;
+                r += VAL_A;
                 break;
             case 'T':
-                r += 1;
+                r += VAL_T;
                 break;
             case 'C':
-                r += 2;
+                r += VAL_C;
                 break;
             case 'G':
-                r += 3;
+                r += VAL_G;
                 break;
         }
     }
@@ -226,6 +231,7 @@ FastQSeq *FastQSeq_New(void)
     ret->name = NULL;
     ret->seq = NULL;
     ret->qual = NULL;
+    ret->low = ret->high = 0LL;
     return ret;
 }
 
@@ -343,6 +349,56 @@ void FastQSeq_RemoveBarcode(FastQSeq *self, int barcode_length)
     self->qual[i]= '\0';
 }
 
+void FastQSeq_SetBits(FastQSeq *self)
+{
+    self->high = self->low = 0LL;
+    size_t pos, 
+           len = strlen(self->seq),
+           max_high = (len > 32L) ? 32L : len,
+           max_low  = (len > 64L) ? 64L : len;
+    max_low = (max_low < 32L) ? 0L : max_low - 32L;
+
+    for(pos = 0; pos < max_high; pos++)
+    {
+        self->high *= 4LL;
+        switch(toupper(self->seq[pos]))
+        {
+            case 'A':
+                self->high += VAL_A;
+                break;
+            case 'T':
+                self->high += VAL_T;
+                break;
+            case 'C':
+                self->high += VAL_C;
+                break;
+            case 'G':
+                self->high += VAL_G;
+                break;
+        }
+    }
+
+    for(pos = 0; pos < max_low; pos++)
+    {
+        self->low *= 4LL;
+        switch(toupper(self->seq[pos+32]))
+        {
+            case 'A':
+                self->low += VAL_A;
+                break;
+            case 'T':
+                self->low += VAL_T;
+                break;
+            case 'C':
+                self->low += VAL_C;
+                break;
+            case 'G':
+                self->low += VAL_G;
+                break;
+        }
+    }
+
+}
 
 // -------------------------- SeqItem
 
@@ -366,38 +422,34 @@ void SeqItem_Free(SeqItem *self)
 
 void SeqItem_Append(SeqItem* self, SeqItem* rhs)
 {
+    //links with self->next
     rhs->next = self->next;
+    if(rhs->next != NULL)
+    {
+        rhs->next->prev = rhs;
+    }
+    //links with self
+    rhs->prev = self;
     self->next = rhs;
 }
 
-int SeqItem_TryMerge(SeqItem* self, FastQSeq* rhs)
+void SeqItem_Prepend(SeqItem **head, SeqItem* self, SeqItem* rhs)
 {
-    size_t ll = strlen(self->the_seq->seq),
-           lr = strlen(rhs->seq),
-           cmp;
-    if(ll > lr)
-        cmp = strncmp(self->the_seq->seq, rhs->seq, lr);
-    else
-        cmp = strncmp(self->the_seq->seq, rhs->seq, ll);
-
-    //if they match, choose the closest to 28
-    if(cmp == 0)
+    //links with self
+    rhs->next = self;
+    self->prev = rhs;
+    //links with self->prev
+    rhs->prev = self->prev;
+    if(self->prev != NULL)
     {
-        //if lhs is closer
-        if(abs(ll-28) < abs(lr-28))
-        {
-            FastQSeq_Free(rhs);
-        }
-        else
-        {
-            FastQSeq_Free(self->the_seq);
-            self->the_seq = rhs;
-        }
-        return 1;
+        self->prev->next = rhs;
     }
-    return 0;
+    else
+    {
+        //we replaced head
+        (*head) = rhs;
+    }
 }
-
 
 int SeqItem_Next(SeqItem **next)
 {
@@ -719,7 +771,8 @@ PyObject *process_sample(PyObject* self, PyObject *args)
             get_umi(seq, barcode_format, umi);
             //Trim the barcode
             FastQSeq_RemoveBarcode(seq, barcode_length);
-
+            //set seq->high and seq->low
+            FastQSeq_SetBits(seq);
 
             //check sequences with the same UMI
             lumi = get_umi_long(umi);
@@ -735,31 +788,38 @@ PyObject *process_sample(PyObject* self, PyObject *args)
             ok = 1;
             while(ok)
             {
-                //if we've already found an identical seq
-                if(SeqItem_TryMerge(item, seq))
+                //compare high
+                if(seq->high == item->the_seq->high)
                 {
-                    //we found a match
-                    seq = NULL;
-                    break;
-                }
+                    if(seq->low == item->the_seq->low)
+                    {
+                        //we have a match
+                        FastQSeq_Free(seq);
+                        seq = NULL;
+                        break;
+                    }
+                    else if(seq->low > item->the_seq->low)
+                    {
+                        //greater than
+                        SeqItem_Prepend(UMI+lumi, item, SeqItem_New(seq));
+                    }
 
-                if(item->next != NULL)
-                {
-                    item = item->next;
                 }
+                else if(seq->high > item->the_seq->high)
+                {
+                    //greater than
+                    SeqItem_Prepend(UMI+lumi, item, SeqItem_New(seq));
+                }
+                // if less than, we need to compare with the next seq
+                //move to the next seq
+                if(item->next != NULL)
+                    item = item->next;
                 else
                 {
-                    ok = 0;
+                    //seq is less than the last item
+                    SeqItem_Append(item, SeqItem_New(seq));
+                    break;
                 }
-            }
-            if(seq == NULL)
-            {
-                continue;
-            }
-            else //if there was no match
-            {
-                //item is the last in the chain
-                SeqItem_Append(item, SeqItem_New(seq));
             }
         }
         //check for error
