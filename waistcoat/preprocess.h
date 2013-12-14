@@ -34,7 +34,9 @@ struct SeqItem {
 SeqItem *SeqItem_New(FastQSeq *seq);
 void SeqItem_Free(SeqItem *self);
 void SeqItem_Append(SeqItem* self, SeqItem* rhs);
-int SeqItem_Compare(SeqItem* self, FastQSeq* rhs);
+//try and replace self with rhs, return 1 if they match
+int SeqItem_TryMerge(SeqItem* self, FastQSeq* rhs);
 //iterate through the list, return True if there is a next, otherwise
 // next is unchanged
 int SeqItem_Next(SeqItem **next);
+size_t SeqItem_Length(SeqItem *s);

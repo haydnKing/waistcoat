@@ -367,13 +367,37 @@ void SeqItem_Free(SeqItem *self)
 void SeqItem_Append(SeqItem* self, SeqItem* rhs)
 {
     rhs->next = self->next;
-    self->next = rhs->next;
+    self->next = rhs;
 }
 
-int SeqItem_Compare(SeqItem* self, FastQSeq* rhs)
+int SeqItem_TryMerge(SeqItem* self, FastQSeq* rhs)
 {
-    return strcmp(self->the_seq->seq, rhs->seq);
+    size_t ll = strlen(self->the_seq->seq),
+           lr = strlen(rhs->seq),
+           cmp;
+    if(ll > lr)
+        cmp = strncmp(self->the_seq->seq, rhs->seq, lr);
+    else
+        cmp = strncmp(self->the_seq->seq, rhs->seq, ll);
+
+    //if they match, choose the closest to 28
+    if(cmp == 0)
+    {
+        //if lhs is closer
+        if(abs(ll-28) < abs(lr-28))
+        {
+            FastQSeq_Free(rhs);
+        }
+        else
+        {
+            FastQSeq_Free(self->the_seq);
+            self->the_seq = rhs;
+        }
+        return 1;
+    }
+    return 0;
 }
+
 
 int SeqItem_Next(SeqItem **next)
 {
@@ -384,6 +408,14 @@ int SeqItem_Next(SeqItem **next)
     return 1;
 }
 
+size_t SeqItem_Length(SeqItem *s)
+{
+    if(s == NULL) return 0;
+    size_t r = 1;
+    while(SeqItem_Next(&s))
+        r++;
+    return r;
+}
 
 // ****************************************************************
 // -------------------------- Module Functions --------------------
@@ -644,6 +676,8 @@ PyObject *process_sample(PyObject* self, PyObject *args)
 
         if(is_verbose())
         {
+            const char *sample_name = PyString_AsString(isample);
+            printf("Sample \"%s\"\n", sample_name);
             printf("\tReading from \"%s\"\n", in_name);
         }
 
@@ -702,14 +736,21 @@ PyObject *process_sample(PyObject* self, PyObject *args)
             while(ok)
             {
                 //if we've already found an identical seq
-                if(SeqItem_Compare(item, seq))
+                if(SeqItem_TryMerge(item, seq))
                 {
-                    //ignore this one
-                    FastQSeq_Free(seq);
+                    //we found a match
                     seq = NULL;
                     break;
                 }
-                ok = SeqItem_Next(&item);
+
+                if(item->next != NULL)
+                {
+                    item = item->next;
+                }
+                else
+                {
+                    ok = 0;
+                }
             }
             if(seq == NULL)
             {
