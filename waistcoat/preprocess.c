@@ -213,12 +213,12 @@ void print_read_dist(long *dist, size_t length, int width, int indent)
     {
         for(j=0; j < indent; j++) putchar('\t');
         printf("%3ld : ", i);
-        for(j=0; j < (int) scale * dist[i]; j++) putchar('*');
+        for(j=0; j < (int) (scale * (double) dist[i]); j++) putchar('*');
         putchar('\n');
     }
 
     for(j=0; j < indent+1; j++) putchar('\t');
-    printf("* = %f\n", 1.0 / scale);
+    printf("* = %.1f\n", 1.0 / scale);
 }
 
 // ****************************************************************
@@ -328,8 +328,6 @@ void FastQSeq_RemoveA(FastQSeq *self)
     {
         self->seq[i+1] = '\0';
         self->qual[i+1] = '\0';
-        self->seq = realloc(self->seq, i+2);
-        self->qual= realloc(self->qual, i+2);
     }
 }
 
@@ -408,6 +406,7 @@ SeqItem *SeqItem_New(FastQSeq *seq)
     SeqItem *r = malloc(sizeof(SeqItem));
     r->the_seq = seq;
     r->next = NULL;
+    r->prev = NULL;
     return r;
 }
 
@@ -435,9 +434,6 @@ void SeqItem_Append(SeqItem* self, SeqItem* rhs)
 
 void SeqItem_Prepend(SeqItem **head, SeqItem* self, SeqItem* rhs)
 {
-    //links with self
-    rhs->next = self;
-    self->prev = rhs;
     //links with self->prev
     rhs->prev = self->prev;
     if(self->prev != NULL)
@@ -449,6 +445,9 @@ void SeqItem_Prepend(SeqItem **head, SeqItem* self, SeqItem* rhs)
         //we replaced head
         (*head) = rhs;
     }
+    //links with self
+    rhs->next = self;
+    self->prev = rhs;
 }
 
 int SeqItem_Next(SeqItem **next)
@@ -536,7 +535,7 @@ PyObject* split_by_barcode(PyObject *self, PyObject *args)
         Py_INCREF(isample);
         
         //open the temp file
-        const char* filename;
+        const char* filename = NULL;
         const char* ssample = PyString_AsString(isample);
         char sample_dot[strlen(ssample) + 2];
         sprintf(sample_dot, "%s.", ssample);
@@ -676,7 +675,7 @@ PyObject *process_sample(PyObject* self, PyObject *args)
     }
     //check dict
     Py_ssize_t pos = 0;
-    PyObject *isample, *ifile;
+    PyObject *isample = NULL, *ifile = NULL;
     while(PyDict_Next(in_files, &pos, &isample, &ifile))
     {
         if(!PyString_Check(isample))
@@ -725,6 +724,12 @@ PyObject *process_sample(PyObject* self, PyObject *args)
         const char *in_name = NULL, *out_name = NULL;
         long length = 1;
         int ok = PyArg_ParseTuple(ifile, "sl", &in_name, &length);
+        if(!ok)
+        {
+            Py_DECREF(out_files);
+            Py_DECREF(PyCount);
+            return NULL;
+        }
 
         if(is_verbose())
         {
@@ -758,14 +763,17 @@ PyObject *process_sample(PyObject* self, PyObject *args)
             {
                 if(is_verbose())
                 {
-                    printf("Reading %ld/%ld (%3.1f%%)         \r", 
+                    printf("\rReading %ld/%ld (%3.1f%%)         ", 
                         count, length,
                         100.0 * (float)((double)count / (double)length));
+                    fflush(stdout);
                 }
             }
             FastQSeq_RemoveA(seq);
             if((strlen(seq->seq)-barcode_length) < MIN_LENGTH)
             {
+                FastQSeq_Free(seq);
+                seq = NULL;
                 continue;
             }
             get_umi(seq, barcode_format, umi);
@@ -773,6 +781,7 @@ PyObject *process_sample(PyObject* self, PyObject *args)
             FastQSeq_RemoveBarcode(seq, barcode_length);
             //set seq->high and seq->low
             FastQSeq_SetBits(seq);
+
 
             //check sequences with the same UMI
             lumi = get_umi_long(umi);
@@ -785,8 +794,7 @@ PyObject *process_sample(PyObject* self, PyObject *args)
                 continue;
             }
             //for each seq with the same UMI
-            ok = 1;
-            while(ok)
+            while(1)
             {
                 //compare high
                 if(seq->high == item->the_seq->high)
@@ -802,13 +810,16 @@ PyObject *process_sample(PyObject* self, PyObject *args)
                     {
                         //greater than
                         SeqItem_Prepend(UMI+lumi, item, SeqItem_New(seq));
+                        break;
                     }
 
                 }
                 else if(seq->high > item->the_seq->high)
                 {
                     //greater than
-                    SeqItem_Prepend(UMI+lumi, item, SeqItem_New(seq));
+                    SeqItem *new = SeqItem_New(seq);
+                    SeqItem_Prepend(UMI+lumi, item, new);
+                    break;
                 }
                 // if less than, we need to compare with the next seq
                 //move to the next seq
@@ -859,8 +870,7 @@ PyObject *process_sample(PyObject* self, PyObject *args)
         for(i=0; i < num_umi; i++)
         {
             item = UMI[i];
-            if(item != NULL) ok = 1;
-            while(ok)
+            while(item != NULL)
             {
                 //write
                 FastQSeq_Write(item->the_seq, out);
@@ -872,7 +882,7 @@ PyObject *process_sample(PyObject* self, PyObject *args)
                 count += 1;
                 total += 1;
 
-                ok = SeqItem_Next(&item);
+                item = item->next;
             }
             //free all items in this UMI
             SeqItem_Free(UMI[i]);
