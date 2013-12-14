@@ -56,16 +56,16 @@ class PreprocessTest(testcases.TestFastQ):
 
 	def test_process_sample(self):
 		"""Test process_sample"""
-		input_file = pjoin(self.tempdir, 'process_test.fq')
-		test_input = pjoin(DATA_DIR, 'process_test.fq')
-		test_output = pjoin(DATA_DIR, 'process_test_out.fq')
+		input_file = pjoin(self.tempdir, 'process_seq_in.fq')
+		test_input = pjoin(DATA_DIR, 'process_seq_in.fq')
+		test_output = pjoin(DATA_DIR, 'process_seq_out.fq')
 
 		#copy test file to tempdir
 		shutil.copyfile(test_input, input_file)
 
 		s = settings.Settings({
 			'barcodes': {"barcode_1": 'TCCA', "barcode_2": 'TCTT',},
-			'barcode_format': "BBBNNNB",
+			'barcode_format': "BBBNB",
 			'target': 'null',})
 		files = preprocess.process_sample(
 				{'sample_1': (input_file, 8,),}, s, self.tempdir)
