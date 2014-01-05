@@ -90,9 +90,9 @@ def run(settings_file, reads, outdir, temp_loc=None):
 	for i,(sample,f) in enumerate(files.iteritems()):
 		if verbose: print "{} ({}/{})...".format(sample, i+1, len(files))
 		
-		ah = os.path.join(outdir, sample, 'accepted_hits.bam')
-		count[sample] = postprocess.run(ah,	"{}.fa".format(target))
-		statistics.collectFinalStats(sample, ah)
+		out = os.path.join(outdir, '{}.bam'.format(sample))
+		count[sample] = postprocess.run(outdir, sample,	"{}.fa".format(target))
+		statistics.collectFinalStats(sample, out)
 		
 	statistics.addValues('final_seqs', count)
 

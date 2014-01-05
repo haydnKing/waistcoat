@@ -35,7 +35,9 @@ class PipelineTest(testcases.TestSamfile):
 			for name in sorted(files):
 				output.append(os.path.relpath(os.path.join(path,name), self.tempdir))
 
-		self.assertEqual(output, [
+		output = sorted(output)
+
+		self.assertEqual(output, sorted([
 				'sample 1/accepted_hits.bam',
 				'sample 1/accepted_hits.bam.bai',
 				'sample 1/deletions.bed',
@@ -61,7 +63,11 @@ class PipelineTest(testcases.TestSamfile):
 				'sample 2/logs/run.log',
 				'sample 2/logs/tophat.log',
 				'statistics/lengths.csv',
-				'statistics/pipeline.csv',])
+				'statistics/pipeline.csv',
+				'sample 1.bam',
+				'sample 1.bam.bai',
+				'sample 2.bam',
+				'sample 2.bam.bai']))
 
 	def test_accepted_hits(self):
 		"""Test the outputted hits"""

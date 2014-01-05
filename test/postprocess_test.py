@@ -15,10 +15,14 @@ class TestPostprocess(testcases.TestSamfile):
 
 	def test_accepted_hits(self):
 		"""Test the postprocessing"""
-		shutil.copy(os.path.join(DATA_DIR, 'accepted_hits.bam'), self.tempdir)
-		shutil.copy(os.path.join(DATA_DIR, 'accepted_hits.bam.bai'), self.tempdir)
+		sample = "sampleName"
+		tophatDir = os.path.join(self.tempdir, sample)
+		os.mkdir(tophatDir)
 
-		postprocess.run(os.path.join(self.tempdir, 'accepted_hits.bam'),
+		shutil.copy(os.path.join(DATA_DIR, 'accepted_hits.bam'), tophatDir)
+		shutil.copy(os.path.join(DATA_DIR, 'accepted_hits.bam.bai'), tophatDir)
+
+		postprocess.run(self.tempdir, sample,
 				os.path.join(DATA_DIR, 'genome.fa'))
 		
 		
@@ -27,6 +31,6 @@ class TestPostprocess(testcases.TestSamfile):
 				'ACTGGACTATTTAGGACGATCGGACTGA',
 			]
 
-		self.assertBAM(os.path.join(self.tempdir, 'accepted_hits.bam'), 
+		self.assertBAM(os.path.join(self.tempdir, '{}.bam'.format(sample)), 
 				os.path.join(DATA_DIR, 'genome.fa'))
 

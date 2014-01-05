@@ -2,9 +2,10 @@
 import pysam, os.path, os, shutil, tempfile, statistics
 from Bio import SeqIO
 
-def run(samfile, genome, target_length = 28):
+def run(outdir, sample, genome, target_length = 28):
 	"""extend hits by adding As up until target length where possible"""
 
+	samfile = os.path.join(outdir, sample, 'accepted_hits.bam')
 	#load the targets into RAM
 	targets = {}
 	for seq in SeqIO.parse(genome, 'fasta'):
@@ -49,6 +50,12 @@ def run(samfile, genome, target_length = 28):
 	#rebuild index
 	os.remove(samfile + ".bai")
 	pysam.index(samfile)
+
+	# sort and index
+	outsam = os.path.join(outdir, '{}'.format(sample))
+	pysam.sort(samfile, outsam)
+	outsam = "{}.bam".format(outsam)
+	pysam.index(outsam)
 
 	return count
 			
