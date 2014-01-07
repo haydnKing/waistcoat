@@ -18,7 +18,7 @@ class PipelineTest(testcases.TestSamfile):
 		self.tempdir = tempfile.mkdtemp(prefix='test_waistcoat.')
 		try:
 			waistcoat.run(self.settings_file, self.reads, self.tempdir, 
-					temp_loc=self.tempdir)
+					temp_loc=self.tempdir, extend=True)
 		except Exception:
 			shutil.rmtree(self.tempdir)
 			raise

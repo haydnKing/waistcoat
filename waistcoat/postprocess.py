@@ -2,10 +2,32 @@
 import pysam, os.path, os, shutil, tempfile, statistics
 from Bio import SeqIO
 
-def run(outdir, sample, genome, target_length = 28):
+def run(outdir, sample, genome, target_length = 28, extend=False):
 	"""extend hits by adding As up until target length where possible"""
 
 	samfile = os.path.join(outdir, sample, 'accepted_hits.bam')
+	pysam.index(samfile)
+	if extend:
+		count = extend_short_reads(samfile, genome, target_length)
+	else:
+		count = count_reads(samfile)
+
+
+	# sort and index
+	outsam = os.path.join(outdir, '{}'.format(sample))
+	pysam.sort(samfile, outsam)
+	outsam = "{}.bam".format(outsam)
+	pysam.index(outsam)
+
+	return count
+			
+def count_reads(samfile):
+	instream = pysam.Samfile(samfile, 'rb')
+	count = instream.mapped
+	instream.close()
+	return count
+
+def extend_short_reads(samfile, genome, target_length):
 	#load the targets into RAM
 	targets = {}
 	for seq in SeqIO.parse(genome, 'fasta'):
@@ -14,9 +36,6 @@ def run(outdir, sample, genome, target_length = 28):
 	#touch the temporary file
 	(temp, tempname) = tempfile.mkstemp('w', prefix='postprocess')
 	os.close(temp)
-
-	#make sure there's an index
-	pysam.index(samfile)
 
 	#open the files
 	instream = pysam.Samfile(samfile, 'rb')
@@ -51,14 +70,7 @@ def run(outdir, sample, genome, target_length = 28):
 	os.remove(samfile + ".bai")
 	pysam.index(samfile)
 
-	# sort and index
-	outsam = os.path.join(outdir, '{}'.format(sample))
-	pysam.sort(samfile, outsam)
-	outsam = "{}.bam".format(outsam)
-	pysam.index(outsam)
-
 	return count
-			
 
 def count_a(alg, target):
 	"""Count the number of As after the read"""

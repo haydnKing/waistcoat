@@ -23,7 +23,8 @@ class TestPostprocess(testcases.TestSamfile):
 		shutil.copy(os.path.join(DATA_DIR, 'accepted_hits.bam.bai'), tophatDir)
 
 		postprocess.run(self.tempdir, sample,
-				os.path.join(DATA_DIR, 'genome.fa'))
+				os.path.join(DATA_DIR, 'genome.fa'),
+				extend=True)
 		
 		
 		output = [

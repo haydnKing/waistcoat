@@ -14,9 +14,9 @@ def main():
 	
 	#parse command line
 	my_args = get_arguments()
-	run(my_args.settings, my_args.reads, my_args.output)
+	run(my_args.settings, my_args.reads, my_args.output, extend=my_args.extend)
 
-def run(settings_file, reads, outdir, temp_loc=None):
+def run(settings_file, reads, outdir, temp_loc=None, extend=False):
 
 	if os.path.exists(outdir):
 		if (check_output and not 
@@ -91,7 +91,8 @@ def run(settings_file, reads, outdir, temp_loc=None):
 		if verbose: print "{} ({}/{})...".format(sample, i+1, len(files))
 		
 		out = os.path.join(outdir, '{}.bam'.format(sample))
-		count[sample] = postprocess.run(outdir, sample,	"{}.fa".format(target))
+		count[sample] = postprocess.run(outdir, sample,	"{}.fa".format(target),
+				extend=extend)
 		statistics.collectFinalStats(sample, out)
 		
 	statistics.addValues('final_seqs', count)
@@ -112,6 +113,8 @@ def get_arguments():
 	parser.add_argument('reads', help='GZIPed fastq file containing reads')
 	parser.add_argument('output', nargs='?', default='waistcoat_out/',
 			help='Directory to store output files')
+	parser.add_argument('--extend', action='store_true', 
+			help='Use the Extend postprocessing method')
 
 	return parser.parse_args()
 
