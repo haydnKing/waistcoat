@@ -15,6 +15,15 @@ following method:
 Settings for configuring the barcode format and Tophat settings are given in a
 JSON encoded settings file, a template for which is given below.
 
+### Installation
+
+Waistcoat is simplest to use in place, but the C-extension must first be built
+by calling `python setup.by build_ext --inplace`.
+
+You can also run the test suite using `python setup.py test`.
+
+### Example Settings
+
 ```JSON
 {
 "_comment": "This is an example settings file for waistcoat. Comments begin with underscores",
